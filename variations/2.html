@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HACK//DEBUGGER — Nand2Tetris Retro Emulator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
+
+:root {
+  --bg-deepest: #0a0a0e;
+  --bg-dark: #111116;
+  --bg-panel: #18181e;
+  --bg-panel-header: #1e1e26;
+  --bg-highlight: #252530;
+  --bg-input: #0e0e14;
+  --border-dim: #2a2a38;
+  --border-bright: #3a3a50;
+  --text-dim: #55557a;
+  --text-mid: #8888aa;
+  --text-bright: #c8c8e0;
+  --text-white: #e8e8f8;
+  --accent-cyan: #00e5ff;
+  --accent-cyan-dim: #00728040;
+  --accent-green: #39ff14;
+  --accent-green-dim: #39ff1430;
+  --accent-red: #ff1744;
+  --accent-red-dim: #ff174430;
+  --accent-yellow: #ffd600;
+  --accent-yellow-dim: #ffd60030;
+  --accent-magenta: #e040fb;
+  --accent-orange: #ff6d00;
+  --breakpoint-color: #ff1744;
+  --pc-highlight: #00e5ff18;
+  --glow-cyan: 0 0 12px #00e5ff40;
+  --glow-green: 0 0 8px #39ff1440;
+  --glow-red: 0 0 8px #ff174440;
+  --font-mono: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+  --font-display: 'Share Tech Mono', 'Consolas', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg-deepest);
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--accent-cyan); color: var(--bg-deepest); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* ═══════════════ TOP BAR ═══════════════ */
+#topbar {
+  height: 32px;
+  background: linear-gradient(180deg, #1a1a24, #12121a);
+  border-bottom: 1px solid var(--border-dim);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 16px;
+  user-select: none;
+}
+#topbar .logo {
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--accent-cyan);
+  letter-spacing: 3px;
+  text-shadow: var(--glow-cyan);
+  font-weight: 700;
+}
+#topbar .logo span { color: var(--text-dim); font-weight: 400; }
+#topbar .sep { width: 1px; height: 16px; background: var(--border-dim); }
+.topbar-btn {
+  background: var(--bg-highlight);
+  border: 1px solid var(--border-dim);
+  color: var(--text-mid);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 3px 10px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.15s;
+  letter-spacing: 0.5px;
+}
+.topbar-btn:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+.topbar-btn.active { background: var(--accent-cyan-dim); border-color: var(--accent-cyan); color: var(--accent-cyan); }
+.topbar-btn.danger:hover { border-color: var(--accent-red); color: var(--accent-red); }
+.topbar-btn.success { border-color: var(--accent-green); color: var(--accent-green); }
+.topbar-btn.success:hover { background: var(--accent-green-dim); }
+#status-indicator {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--text-dim);
+  transition: background 0.3s;
+  box-shadow: none;
+}
+#status-indicator.running { background: var(--accent-green); box-shadow: var(--glow-green); }
+#status-indicator.paused { background: var(--accent-yellow); }
+#status-indicator.error { background: var(--accent-red); box-shadow: var(--glow-red); }
+#status-text { font-size: 10px; color: var(--text-dim); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+#cycle-counter { font-size: 10px; color: var(--text-dim); font-family: var(--font-display); letter-spacing: 1px; }
+
+/* ═══════════════ MAIN LAYOUT ═══════════════ */
+#app {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  height: calc(100vh - 32px);
+  gap: 1px;
+  background: var(--border-dim);
+}
+
+/* ═══════════════ PANEL STYLING ═══════════════ */
+.panel {
+  background: var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+.panel-header {
+  background: var(--bg-panel-header);
+  border-bottom: 1px solid var(--border-dim);
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  user-select: none;
+  flex-shrink: 0;
+}
+.panel-header .panel-icon {
+  font-size: 9px;
+  width: 16px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 2px;
+  font-weight: 700;
+}
+.panel-header .panel-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.panel-header .panel-badge {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: var(--bg-highlight);
+  border: 1px solid var(--border-dim);
+  color: var(--text-dim);
+  margin-left: auto;
+}
+.panel-body { flex: 1; overflow: hidden; position: relative; }
+
+/* ═══════════════ PANEL 1: DISASSEMBLY ═══════════════ */
+#panel-disasm .panel-icon { background: var(--accent-cyan-dim); color: var(--accent-cyan); }
+#panel-disasm .panel-title { color: var(--accent-cyan); }
+
+#disasm-container {
+  height: 100%;
+  overflow-y: auto;
+  font-size: 11px;
+  line-height: 1;
+}
+.disasm-line {
+  display: grid;
+  grid-template-columns: 14px 42px 130px 1fr;
+  align-items: center;
+  padding: 1px 6px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  min-height: 18px;
+  transition: background 0.08s;
+}
+.disasm-line:hover { background: var(--bg-highlight); }
+.disasm-line.current {
+  background: var(--pc-highlight);
+  border-left-color: var(--accent-cyan);
+}
+.disasm-line.current .d-addr { color: var(--accent-cyan); text-shadow: var(--glow-cyan); }
+.disasm-line .d-bp {
+  width: 8px; height: 8px; border-radius: 50%;
+  cursor: pointer;
+}
+.disasm-line .d-bp.active { background: var(--breakpoint-color); box-shadow: var(--glow-red); }
+.disasm-line .d-addr { color: var(--text-dim); font-size: 10px; }
+.disasm-line .d-binary { color: var(--text-dim); font-size: 10px; letter-spacing: 0.3px; }
+.disasm-line .d-asm { color: var(--text-bright); font-size: 11px; }
+.disasm-line .d-asm .kw { color: var(--accent-cyan); }
+.disasm-line .d-asm .num { color: var(--accent-yellow); }
+.disasm-line .d-asm .label { color: var(--accent-magenta); }
+.disasm-line .d-asm .jmp { color: var(--accent-orange); }
+
+/* ═══════════════ PANEL 2: VISUAL MEMORY MAP ═══════════════ */
+#panel-memmap .panel-icon { background: var(--accent-green-dim); color: var(--accent-green); }
+#panel-memmap .panel-title { color: var(--accent-green); }
+
+#memmap-wrapper {
+  width: 100%; height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  gap: 4px;
+}
+#memmap-canvas {
+  image-rendering: pixelated;
+  border: 1px solid var(--border-bright);
+  background: #000;
+  width: 100%;
+  max-height: calc(100% - 30px);
+  object-fit: contain;
+}
+#memmap-info {
+  display: flex;
+  gap: 16px;
+  font-size: 9px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+#memmap-info .legend-item { display: flex; align-items: center; gap: 4px; }
+#memmap-info .legend-swatch { width: 8px; height: 8px; border-radius: 1px; }
+
+/* ═══════════════ PANEL 3: SCREEN ═══════════════ */
+#panel-screen .panel-icon { background: var(--accent-yellow-dim); color: var(--accent-yellow); }
+#panel-screen .panel-title { color: var(--accent-yellow); }
+
+#screen-wrapper {
+  width: 100%; height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #050508;
+  position: relative;
+  overflow: hidden;
+}
+#screen-canvas {
+  image-rendering: pixelated;
+  border: 1px solid var(--border-dim);
+  background: #000;
+  max-width: 98%;
+  max-height: calc(100% - 8px);
+}
+#screen-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.06) 2px,
+    rgba(0,0,0,0.06) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ═══════════════ PANEL 4: CPU STATE & CONTROLS ═══════════════ */
+#panel-cpu .panel-icon { background: var(--accent-magenta); color: #fff; font-size: 8px; }
+#panel-cpu .panel-title { color: var(--accent-magenta); }
+
+#cpu-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  padding: 6px;
+  gap: 6px;
+}
+.cpu-section {
+  background: var(--bg-dark);
+  border: 1px solid var(--border-dim);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.cpu-section-header {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 3px 8px;
+  background: var(--bg-panel-header);
+  border-bottom: 1px solid var(--border-dim);
+}
+.reg-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border-dim);
+}
+.reg-item {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: var(--bg-dark);
+  gap: 6px;
+}
+.reg-item.full { grid-column: 1 / -1; }
+.reg-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  min-width: 28px;
+}
+.reg-val-dec {
+  font-size: 11px;
+  color: var(--text-white);
+  font-family: var(--font-display);
+  min-width: 52px;
+}
+.reg-val-hex {
+  font-size: 10px;
+  color: var(--accent-yellow);
+  font-family: var(--font-display);
+}
+.reg-val-bin {
+  font-size: 9px;
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  letter-spacing: 0.5px;
+}
+.flag-grid {
+  display: flex;
+  gap: 1px;
+  background: var(--border-dim);
+}
+.flag-item {
+  flex: 1;
+  text-align: center;
+  padding: 3px 4px;
+  background: var(--bg-dark);
+}
+.flag-label { font-size: 9px; color: var(--text-dim); }
+.flag-val { font-size: 12px; font-weight: 700; font-family: var(--font-display); }
+.flag-val.on { color: var(--accent-green); }
+.flag-val.off { color: var(--text-dim); }
+
+/* Controls */
+.ctrl-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.ctrl-btn {
+  flex: 1;
+  min-width: 52px;
+  background: var(--bg-highlight);
+  border: 1px solid var(--border-dim);
+  color: var(--text-mid);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 5px 4px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.12s;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+.ctrl-btn:hover { border-color: var(--text-mid); color: var(--text-white); }
+.ctrl-btn.primary { border-color: var(--accent-green); color: var(--accent-green); }
+.ctrl-btn.primary:hover { background: var(--accent-green-dim); }
+.ctrl-btn.warn { border-color: var(--accent-yellow); color: var(--accent-yellow); }
+.ctrl-btn.warn:hover { background: var(--accent-yellow-dim); }
+.ctrl-btn.danger { border-color: var(--accent-red); color: var(--accent-red); }
+.ctrl-btn.danger:hover { background: var(--accent-red-dim); }
+.ctrl-btn.info { border-color: var(--accent-cyan); color: var(--accent-cyan); }
+.ctrl-btn.info:hover { background: var(--accent-cyan-dim); }
+
+.speed-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+.speed-row label { font-size: 9px; color: var(--text-dim); white-space: nowrap; }
+.speed-row input[type=range] {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 4px;
+  background: var(--border-dim);
+  border-radius: 2px;
+  outline: none;
+}
+.speed-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px; height: 10px;
+  background: var(--accent-cyan);
+  border-radius: 50%;
+  cursor: pointer;
+}
+#speed-val { font-size: 10px; color: var(--accent-cyan); font-family: var(--font-display); min-width: 48px; text-align: right; }
+
+/* RAM Watch */
+.ram-watch {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--border-dim);
+}
+.ram-item {
+  background: var(--bg-dark);
+  padding: 2px 6px;
+  display: flex;
+  justify-content: space-between;
+}
+.ram-addr { font-size: 9px; color: var(--text-dim); }
+.ram-val { font-size: 10px; color: var(--text-bright); font-family: var(--font-display); }
+
+/* ═══════════════ EDITOR MODAL ═══════════════ */
+#editor-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+#editor-overlay.visible { display: flex; }
+#editor-modal {
+  width: 680px;
+  max-height: 85vh;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bright);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+#editor-modal .modal-header {
+  padding: 8px 14px;
+  background: var(--bg-panel-header);
+  border-bottom: 1px solid var(--border-dim);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#editor-modal .modal-header h3 {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+}
+#editor-modal .modal-body { flex: 1; padding: 8px; overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
+#asm-editor {
+  flex: 1;
+  width: 100%;
+  min-height: 300px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-dim);
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 8px;
+  resize: none;
+  outline: none;
+  border-radius: 2px;
+  tab-size: 4;
+}
+#asm-editor:focus { border-color: var(--accent-cyan); }
+#asm-error {
+  font-size: 10px;
+  color: var(--accent-red);
+  padding: 4px 8px;
+  background: var(--accent-red-dim);
+  border-radius: 2px;
+  display: none;
+}
+#asm-error.visible { display: block; }
+.modal-footer {
+  padding: 8px 14px;
+  border-top: 1px solid var(--border-dim);
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* ═══════════════ TOOLTIP ═══════════════ */
+#mem-tooltip {
+  position: fixed;
+  background: var(--bg-panel-header);
+  border: 1px solid var(--border-bright);
+  padding: 4px 8px;
+  font-size: 10px;
+  color: var(--text-bright);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 50;
+  display: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  white-space: nowrap;
+}
+#mem-tooltip.visible { display: block; }
+
+/* ═══════════════ ANIMATIONS ═══════════════ */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ TOP BAR ═══ -->
+<div id="topbar">
+  <div class="logo">HACK<span>//DEBUGGER</span></div>
+  <div class="sep"></div>
+  <div id="status-indicator"></div>
+  <div id="status-text">IDLE</div>
+  <div class="sep"></div>
+  <button class="topbar-btn" onclick="openEditor()">◆ LOAD ASM</button>
+  <button class="topbar-btn success" onclick="doRun()" id="tb-run">▶ RUN</button>
+  <button class="topbar-btn warn" onclick="doPause()" id="tb-pause">❚❚ PAUSE</button>
+  <button class="topbar-btn" onclick="doStep()">⮞ STEP</button>
+  <button class="topbar-btn danger" onclick="doReset()">⟲ RESET</button>
+  <div class="topbar-right">
+    <div id="cycle-counter">CYC: 0</div>
+  </div>
+</div>
+
+<!-- ═══ MAIN 4-PANEL LAYOUT ═══ -->
+<div id="app">
+
+  <!-- PANEL 1: DISASSEMBLY -->
+  <div class="panel" id="panel-disasm">
+    <div class="panel-header">
+      <div class="panel-icon">⌘</div>
+      <div class="panel-title">Disassembly</div>
+      <div class="panel-badge" id="rom-count">ROM: 0</div>
+    </div>
+    <div class="panel-body">
+      <div id="disasm-container"></div>
+    </div>
+  </div>
+
+  <!-- PANEL 2: VISUAL MEMORY MAP -->
+  <div class="panel" id="panel-memmap">
+    <div class="panel-header">
+      <div class="panel-icon">▦</div>
+      <div class="panel-title">Memory Map</div>
+      <div class="panel-badge">32K RAM</div>
+    </div>
+    <div class="panel-body">
+      <div id="memmap-wrapper">
+        <canvas id="memmap-canvas" width="256" height="128"></canvas>
+        <div id="memmap-info">
+          <div class="legend-item"><div class="legend-swatch" style="background:#000;border:1px solid #333"></div> Zero</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#888"></div> Non-Zero</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#39ff14"></div> Read</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#ff1744"></div> Write</div>
+          <div class="legend-item"><div class="legend-swatch" style="background:#00e5ff"></div> Screen</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 4: CPU STATE (bottom-left) -->
+  <div class="panel" id="panel-cpu">
+    <div class="panel-header">
+      <div class="panel-icon">μ</div>
+      <div class="panel-title">CPU State</div>
+      <div class="panel-badge" id="cpu-hz">0 Hz</div>
+    </div>
+    <div class="panel-body">
+      <div id="cpu-body">
+        <!-- Registers -->
+        <div class="cpu-section">
+          <div class="cpu-section-header">Registers</div>
+          <div class="reg-grid">
+            <div class="reg-item"><span class="reg-label">A</span><span class="reg-val-dec" id="r-a-dec">0</span><span class="reg-val-hex" id="r-a-hex">0x0000</span></div>
+            <div class="reg-item"><span class="reg-label">D</span><span class="reg-val-dec" id="r-d-dec">0</span><span class="reg-val-hex" id="r-d-hex">0x0000</span></div>
+            <div class="reg-item"><span class="reg-label">PC</span><span class="reg-val-dec" id="r-pc-dec">0</span><span class="reg-val-hex" id="r-pc-hex">0x0000</span></div>
+            <div class="reg-item"><span class="reg-label">M</span><span class="reg-val-dec" id="r-m-dec">0</span><span class="reg-val-hex" id="r-m-hex">0x0000</span></div>
+          </div>
+        </div>
+        <!-- ALU Flags -->
+        <div class="cpu-section">
+          <div class="cpu-section-header">ALU Flags</div>
+          <div class="flag-grid">
+            <div class="flag-item"><div class="flag-label">zr</div><div class="flag-val off" id="f-zr">0</div></div>
+            <div class="flag-item"><div class="flag-label">ng</div><div class="flag-val off" id="f-ng">0</div></div>
+            <div class="flag-item"><div class="flag-label">EQ</div><div class="flag-val off" id="f-eq">·</div></div>
+            <div class="flag-item"><div class="flag-label">GT</div><div class="flag-val off" id="f-gt">·</div></div>
+            <div class="flag-item"><div class="flag-label">LT</div><div class="flag-val off" id="f-lt">·</div></div>
+          </div>
+        </div>
+        <!-- Controls -->
+        <div class="cpu-section">
+          <div class="cpu-section-header">Controls</div>
+          <div style="padding: 6px; display:flex; flex-direction:column; gap: 5px;">
+            <div class="ctrl-row">
+              <button class="ctrl-btn primary" onclick="doRun()">▶ RUN</button>
+              <button class="ctrl-btn warn" onclick="doPause()">❚❚ PAUSE</button>
+              <button class="ctrl-btn info" onclick="doStep()">⮞ STEP</button>
+              <button class="ctrl-btn danger" onclick="doReset()">⟲ RESET</button>
+            </div>
+            <div class="speed-row">
+              <label>SPEED</label>
+              <input type="range" id="speed-slider" min="1" max="7" value="4">
+              <span id="speed-val">1000/f</span>
+            </div>
+          </div>
+        </div>
+        <!-- RAM Watch -->
+        <div class="cpu-section">
+          <div class="cpu-section-header">RAM Watch</div>
+          <div class="ram-watch" id="ram-watch"></div>
+        </div>
+        <!-- Current Instruction -->
+        <div class="cpu-section">
+          <div class="cpu-section-header">Current Instruction</div>
+          <div style="padding: 6px;">
+            <div style="display:flex;gap:10px;align-items:center;">
+              <span style="color:var(--text-dim);font-size:9px;">BIN</span>
+              <span id="cur-bin" style="font-family:var(--font-display);font-size:12px;color:var(--accent-cyan);letter-spacing:1px;">0000000000000000</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;margin-top:3px;">
+              <span style="color:var(--text-dim);font-size:9px;">ASM</span>
+              <span id="cur-asm" style="font-size:12px;color:var(--text-white);">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL 3: SCREEN OUTPUT (bottom-right) -->
+  <div class="panel" id="panel-screen">
+    <div class="panel-header">
+      <div class="panel-icon">▣</div>
+      <div class="panel-title">Screen Output</div>
+      <div class="panel-badge">512×256</div>
+    </div>
+    <div class="panel-body">
+      <div id="screen-wrapper">
+        <canvas id="screen-canvas" width="512" height="256"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ EDITOR OVERLAY ═══ -->
+<div id="editor-overlay">
+  <div id="editor-modal">
+    <div class="modal-header">
+      <h3>◆ Hack Assembly Editor</h3>
+      <button class="topbar-btn" onclick="closeEditor()">✕ CLOSE</button>
+    </div>
+    <div class="modal-body">
+      <textarea id="asm-editor" spellcheck="false" placeholder="Enter Hack Assembly code..."></textarea>
+      <div id="asm-error"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="topbar-btn" onclick="closeEditor()">CANCEL</button>
+      <button class="topbar-btn success" onclick="assembleAndLoad()">⚡ ASSEMBLE & LOAD</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MEMORY TOOLTIP ═══ -->
+<div id="mem-tooltip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  HACK COMPUTER EMULATOR — CORE ENGINE
+// ═══════════════════════════════════════════════════════════════
+
+const ROM_SIZE = 32768;
+const RAM_SIZE = 32768;
+const SCREEN_BASE = 16384;
+const SCREEN_END = 24576;
+const KBD_ADDR = 24576;
+
+// Machine state
+let ROM = new Int16Array(ROM_SIZE);
+let RAM = new Int16Array(RAM_SIZE);
+let regA = 0, regD = 0, PC = 0;
+let aluZr = false, aluNg = false;
+let cycleCount = 0;
+let running = false;
+let breakpoints = new Set();
+let romLength = 0;
+
+// Source map for disassembly
+let sourceLines = [];  // [{binary, asm, srcLine}]
+let asmSourceMap = []; // original text lines
+
+// Memory access tracking for heatmap
+const MEM_W = 256, MEM_H = 128;
+const TOTAL_CELLS = MEM_W * MEM_H;
+let memReadFlash  = new Float32Array(RAM_SIZE);
+let memWriteFlash = new Float32Array(RAM_SIZE);
+const FLASH_DECAY = 0.85;
+
+// Speed settings
+const SPEED_MAP = [1, 10, 100, 1000, 5000, 20000, 100000];
+let cyclesPerFrame = 1000;
+
+// ═══════════════════════════════════════════════════════════════
+//  ASSEMBLER
+// ═══════════════════════════════════════════════════════════════
+
+const DEST_MAP = { '':0, 'M':1, 'D':2, 'MD':3, 'DM':3, 'A':4, 'AM':5, 'MA':5, 'AD':6, 'DA':6, 'AMD':7, 'ADM':7, 'DAM':7, 'DMA':7, 'MAD':7, 'MDA':7 };
+const JUMP_MAP = { '':0, 'JGT':1, 'JEQ':2, 'JGE':3, 'JLT':4, 'JNE':5, 'JLE':6, 'JMP':7 };
+const COMP_MAP = {
+  '0':  0b0101010, '1':  0b0111111, '-1': 0b0111010,
+  'D':  0b0001100, 'A':  0b0110000, '!D': 0b0001101,
+  '!A': 0b0110001, '-D': 0b0001111, '-A': 0b0110011,
+  'D+1':0b0011111, 'A+1':0b0110111, 'D-1':0b0001110,
+  'A-1':0b0110010, 'D+A':0b0000010, 'A+D':0b0000010,
+  'D-A':0b0010011, 'A-D':0b0000111, 'D&A':0b0000000,
+  'A&D':0b0000000, 'D|A':0b0010101, 'A|D':0b0010101,
+  'M':  0b1110000, '!M': 0b1110001, '-M': 0b1110011,
+  'M+1':0b1110111, 'M-1':0b1110010, 'D+M':0b1000010,
+  'M+D':0b1000010, 'D-M':0b1010011, 'M-D':0b1000111,
+  'D&M':0b1000000, 'M&D':0b1000000, 'D|M':0b1010101,
+  'M|D':0b1010101,
+};
+
+// Predefined symbols
+const PREDEF_SYMBOLS = {
+  SP:0, LCL:1, ARG:2, THIS:3, THAT:4,
+  R0:0, R1:1, R2:2, R3:3, R4:4, R5:5, R6:6, R7:7,
+  R8:8, R9:9, R10:10, R11:11, R12:12, R13:13, R14:14, R15:15,
+  SCREEN:16384, KBD:24576,
+};
+
+function assemble(source) {
+  const lines = source.split('\n');
+  const symbols = { ...PREDEF_SYMBOLS };
+  const cleaned = [];
+  const origLines = [];
+
+  // First pass: strip comments/whitespace, record labels
+  let romAddr = 0;
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].replace(/\/\/.*/, '').trim();
+    if (!line) continue;
+    if (line.startsWith('(') && line.endsWith(')')) {
+      const label = line.slice(1, -1).trim();
+      if (symbols[label] === undefined) symbols[label] = romAddr;
+      continue;
+    }
+    cleaned.push(line);
+    origLines.push(i + 1);
+    romAddr++;
+  }
+
+  // Second pass: generate binary
+  const output = [];
+  const srcMap = [];
+  let nextVar = 16;
+
+  for (let i = 0; i < cleaned.length; i++) {
+    const line = cleaned[i];
+    try {
+      if (line.startsWith('@')) {
+        // A-instruction
+        const val = line.slice(1).trim();
+        let num;
+        if (/^\d+$/.test(val)) {
+          num = parseInt(val, 10);
+        } else {
+          if (symbols[val] === undefined) {
+            symbols[val] = nextVar++;
+          }
+          num = symbols[val];
+        }
+        const instr = num & 0x7FFF;
+        output.push(instr);
+        srcMap.push({ binary: toBin16(instr), asm: line, srcLine: origLines[i] });
+      } else {
+        // C-instruction
+        let dest = '', comp = '', jump = '';
+        let rest = line;
+        if (rest.includes('=')) {
+          const parts = rest.split('=');
+          dest = parts[0].trim();
+          rest = parts[1].trim();
+        }
+        if (rest.includes(';')) {
+          const parts = rest.split(';');
+          comp = parts[0].trim();
+          jump = parts[1].trim();
+        } else {
+          comp = rest.trim();
+        }
+
+        const compBits = COMP_MAP[comp];
+        if (compBits === undefined) throw new Error(`Unknown comp: "${comp}"`);
+        const destBits = DEST_MAP[dest];
+        if (destBits === undefined) throw new Error(`Unknown dest: "${dest}"`);
+        const jumpBits = JUMP_MAP[jump];
+        if (jumpBits === undefined) throw new Error(`Unknown jump: "${jump}"`);
+
+        const instr = (0b111 << 13) | (compBits << 6) | (destBits << 3) | jumpBits;
+        const signed = instr > 32767 ? instr - 65536 : instr;
+        output.push(signed);
+        srcMap.push({ binary: toBin16(instr & 0xFFFF), asm: line, srcLine: origLines[i] });
+      }
+    } catch (e) {
+      throw new Error(`Line ${origLines[i]}: ${e.message}`);
+    }
+  }
+  return { output, srcMap };
+}
+
+function toBin16(v) {
+  return (v & 0xFFFF).toString(2).padStart(16, '0');
+}
+function toHex16(v) {
+  return '0x' + ((v & 0xFFFF) >>> 0).toString(16).toUpperCase().padStart(4, '0');
+}
+function toSigned16(v) {
+  v = v & 0xFFFF;
+  return v > 32767 ? v - 65536 : v;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CPU EXECUTION
+// ═══════════════════════════════════════════════════════════════
+
+function cpuStep() {
+  if (PC < 0 || PC >= romLength) { running = false; return; }
+
+  const instr = ROM[PC] & 0xFFFF;
+
+  if ((instr & 0x8000) === 0) {
+    // A-instruction
+    regA = instr & 0x7FFF;
+    PC++;
+  } else {
+    // C-instruction
+    const a  = (instr >> 12) & 1;
+    const c  = (instr >> 6) & 63;
+    const d  = (instr >> 3) & 7;
+    const j  = instr & 7;
+
+    // Read M = RAM[A]
+    const aAddr = regA & 0x7FFF;
+    let mVal = RAM[aAddr];
+    if (a) memReadFlash[aAddr] = 1.0;
+
+    const y = a ? mVal : regA;
+    let x = regD;
+
+    // ALU
+    let out = 0;
+    const zx = (c >> 5) & 1;
+    const nx = (c >> 4) & 1;
+    const zy = (c >> 3) & 1;
+    const ny = (c >> 2) & 1;
+    const f  = (c >> 1) & 1;
+    const no = c & 1;
+
+    if (zx) x = 0;
+    if (nx) x = ~x;
+    if (zy) out = 0; else out = y;
+    if (ny) out = ~out;
+    if (f)  out = x + out; else out = x & out;
+    if (no) out = ~out;
+
+    out = toSigned16(out);
+    aluZr = (out === 0);
+    aluNg = (out < 0);
+
+    // Destination
+    if (d & 1) { RAM[aAddr] = out; memWriteFlash[aAddr] = 1.0; } // M
+    if (d & 2) regD = out;      // D
+    if (d & 4) regA = out & 0xFFFF; // A
+
+    // Jump
+    let doJump = false;
+    if (j) {
+      const pos = !aluZr && !aluNg;
+      if ((j & 1) && pos)   doJump = true; // JGT
+      if ((j & 2) && aluZr) doJump = true; // JEQ
+      if ((j & 4) && aluNg) doJump = true; // JLT
+    }
+
+    if (doJump) {
+      PC = regA & 0x7FFF;
+    } else {
+      PC++;
+    }
+  }
+
+  // Clamp registers to 16-bit
+  regA = toSigned16(regA);
+  regD = toSigned16(regD);
+  cycleCount++;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  UI REFERENCES
+// ═══════════════════════════════════════════════════════════════
+
+const $disasm = document.getElementById('disasm-container');
+const $memCanvas = document.getElementById('memmap-canvas');
+const memCtx = $memCanvas.getContext('2d');
+const $screenCanvas = document.getElementById('screen-canvas');
+const screenCtx = $screenCanvas.getContext('2d');
+const $editor = document.getElementById('asm-editor');
+const $overlay = document.getElementById('editor-overlay');
+const $asmError = document.getElementById('asm-error');
+const $statusInd = document.getElementById('status-indicator');
+const $statusText = document.getElementById('status-text');
+const $cycleCounter = document.getElementById('cycle-counter');
+const $speedSlider = document.getElementById('speed-slider');
+const $speedVal = document.getElementById('speed-val');
+const $romCount = document.getElementById('rom-count');
+const $cpuHz = document.getElementById('cpu-hz');
+const $tooltip = document.getElementById('mem-tooltip');
+
+// ═══════════════════════════════════════════════════════════════
+//  DISASSEMBLY VIEW
+// ═══════════════════════════════════════════════════════════════
+
+let disasmElements = [];
+
+function buildDisasmView() {
+  $disasm.innerHTML = '';
+  disasmElements = [];
+  for (let i = 0; i < sourceLines.length; i++) {
+    const s = sourceLines[i];
+    const el = document.createElement('div');
+    el.className = 'disasm-line';
+    el.dataset.idx = i;
+
+    const bp = document.createElement('div');
+    bp.className = 'd-bp';
+    bp.onclick = (e) => { e.stopPropagation(); toggleBreakpoint(i); };
+
+    const addr = document.createElement('div');
+    addr.className = 'd-addr';
+    addr.textContent = i.toString().padStart(4, ' ');
+
+    const bin = document.createElement('div');
+    bin.className = 'd-binary';
+    bin.textContent = s.binary;
+
+    const asm = document.createElement('div');
+    asm.className = 'd-asm';
+    asm.innerHTML = syntaxHighlight(s.asm);
+
+    el.appendChild(bp);
+    el.appendChild(addr);
+    el.appendChild(bin);
+    el.appendChild(asm);
+    el.onclick = () => toggleBreakpoint(i);
+
+    $disasm.appendChild(el);
+    disasmElements.push(el);
+  }
+  $romCount.textContent = `ROM: ${sourceLines.length}`;
+}
+
+function syntaxHighlight(asm) {
+  if (asm.startsWith('@')) {
+    const val = asm.slice(1);
+    if (/^\d+$/.test(val)) return `<span class="kw">@</span><span class="num">${val}</span>`;
+    return `<span class="kw">@</span><span class="label">${val}</span>`;
+  }
+  let html = asm;
+  html = html.replace(/(JGT|JEQ|JGE|JLT|JNE|JLE|JMP)/g, '<span class="jmp">$1</span>');
+  return html;
+}
+
+function toggleBreakpoint(idx) {
+  if (breakpoints.has(idx)) {
+    breakpoints.delete(idx);
+    disasmElements[idx].querySelector('.d-bp').classList.remove('active');
+  } else {
+    breakpoints.add(idx);
+    disasmElements[idx].querySelector('.d-bp').classList.add('active');
+  }
+}
+
+let lastHighlight = -1;
+function updateDisasmHighlight() {
+  if (lastHighlight >= 0 && lastHighlight < disasmElements.length) {
+    disasmElements[lastHighlight].classList.remove('current');
+  }
+  if (PC >= 0 && PC < disasmElements.length) {
+    disasmElements[PC].classList.add('current');
+    // Scroll into view
+    const container = $disasm;
+    const el = disasmElements[PC];
+    const ct = container.scrollTop;
+    const ch = container.clientHeight;
+    const et = el.offsetTop;
+    const eh = el.offsetHeight;
+    if (et < ct || et + eh > ct + ch) {
+      container.scrollTop = et - ch / 3;
+    }
+  }
+  lastHighlight = PC;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  VISUAL MEMORY MAP (Heatmap)
+// ═══════════════════════════════════════════════════════════════
+
+const memImgData = memCtx.createImageData(MEM_W, MEM_H);
+
+function updateMemoryMap() {
+  const data = memImgData.data;
+  // Each pixel maps to RAM_SIZE / (MEM_W*MEM_H) words
+  // 32768 / 32768 = 1 word per pixel (256*128 = 32768)
+  for (let i = 0; i < TOTAL_CELLS; i++) {
+    const val = RAM[i] & 0xFFFF;
+    const rFlash = memReadFlash[i];
+    const wFlash = memWriteFlash[i];
+    const offset = i * 4;
+
+    let r, g, b;
+
+    if (wFlash > 0.1) {
+      // Write flash: red
+      r = Math.floor(255 * wFlash);
+      g = Math.floor(30 * wFlash);
+      b = Math.floor(20 * wFlash);
+    } else if (rFlash > 0.1) {
+      // Read flash: green
+      r = Math.floor(20 * rFlash);
+      g = Math.floor(255 * rFlash);
+      b = Math.floor(20 * rFlash);
+    } else if (i >= SCREEN_BASE && i < SCREEN_END) {
+      // Screen region: cyan tint for non-zero
+      if (val !== 0) {
+        const intensity = Math.min(255, Math.abs(toSigned16(val)) >> 7 | 80);
+        r = 0;
+        g = Math.floor(intensity * 0.7);
+        b = intensity;
+      } else {
+        r = 0; g = 8; b = 15;
+      }
+    } else if (val === 0) {
+      r = 4; g = 4; b = 8;
+    } else {
+      const intensity = Math.min(200, (Math.abs(toSigned16(val)) >> 7) + 30);
+      r = intensity;
+      g = intensity;
+      b = Math.floor(intensity * 1.1);
+    }
+
+    data[offset] = r;
+    data[offset + 1] = g;
+    data[offset + 2] = b;
+    data[offset + 3] = 255;
+
+    // Decay flash
+    memReadFlash[i]  *= FLASH_DECAY;
+    memWriteFlash[i] *= FLASH_DECAY;
+  }
+
+  memCtx.putImageData(memImgData, 0, 0);
+}
+
+// Memory map tooltip
+$memCanvas.addEventListener('mousemove', (e) => {
+  const rect = $memCanvas.getBoundingClientRect();
+  const scaleX = MEM_W / rect.width;
+  const scaleY = MEM_H / rect.height;
+  const px = Math.floor((e.clientX - rect.left) * scaleX);
+  const py = Math.floor((e.clientY - rect.top) * scaleY);
+  const addr = py * MEM_W + px;
+  if (addr >= 0 && addr < RAM_SIZE) {
+    const val = RAM[addr];
+    let region = 'General';
+    if (addr >= SCREEN_BASE && addr < SCREEN_END) region = 'Screen';
+    else if (addr === KBD_ADDR) region = 'Keyboard';
+    else if (addr < 16) region = 'Register';
+    $tooltip.innerHTML = `<b>${region}</b> [${addr}] = ${val} (${toHex16(val)})`;
+    $tooltip.style.left = (e.clientX + 12) + 'px';
+    $tooltip.style.top = (e.clientY - 24) + 'px';
+    $tooltip.classList.add('visible');
+  } else {
+    $tooltip.classList.remove('visible');
+  }
+});
+$memCanvas.addEventListener('mouseleave', () => $tooltip.classList.remove('visible'));
+
+// ═══════════════════════════════════════════════════════════════
+//  SCREEN RENDERING
+// ═══════════════════════════════════════════════════════════════
+
+const screenImgData = screenCtx.createImageData(512, 256);
+
+function updateScreen() {
+  const data = screenImgData.data;
+  // Screen: 256 rows × 32 words/row (each word = 16 pixels)
+  for (let row = 0; row < 256; row++) {
+    for (let col = 0; col < 32; col++) {
+      const addr = SCREEN_BASE + row * 32 + col;
+      const word = RAM[addr] & 0xFFFF;
+      for (let bit = 0; bit < 16; bit++) {
+        const px = col * 16 + bit;
+        const offset = (row * 512 + px) * 4;
+        if ((word >> bit) & 1) {
+          // Pixel ON — greenish white
+          data[offset]     = 200;
+          data[offset + 1] = 240;
+          data[offset + 2] = 200;
+          data[offset + 3] = 255;
+        } else {
+          // Pixel OFF
+          data[offset]     = 8;
+          data[offset + 1] = 10;
+          data[offset + 2] = 12;
+          data[offset + 3] = 255;
+        }
+      }
+    }
+  }
+  screenCtx.putImageData(screenImgData, 0, 0);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CPU STATE DISPLAY
+// ═══════════════════════════════════════════════════════════════
+
+function updateCPUState() {
+  const aDec = document.getElementById('r-a-dec');
+  const aHex = document.getElementById('r-a-hex');
+  const dDec = document.getElementById('r-d-dec');
+  const dHex = document.getElementById('r-d-hex');
+  const pcDec = document.getElementById('r-pc-dec');
+  const pcHex = document.getElementById('r-pc-hex');
+  const mDec = document.getElementById('r-m-dec');
+  const mHex = document.getElementById('r-m-hex');
+
+  aDec.textContent = regA;
+  aHex.textContent = toHex16(regA);
+  dDec.textContent = regD;
+  dHex.textContent = toHex16(regD);
+  pcDec.textContent = PC;
+  pcHex.textContent = toHex16(PC);
+
+  const mAddr = regA & 0x7FFF;
+  const mVal = (mAddr < RAM_SIZE) ? RAM[mAddr] : 0;
+  mDec.textContent = mVal;
+  mHex.textContent = toHex16(mVal);
+
+  // Flags
+  const fZr = document.getElementById('f-zr');
+  const fNg = document.getElementById('f-ng');
+  const fEq = document.getElementById('f-eq');
+  const fGt = document.getElementById('f-gt');
+  const fLt = document.getElementById('f-lt');
+
+  fZr.textContent = aluZr ? '1' : '0';
+  fZr.className = 'flag-val ' + (aluZr ? 'on' : 'off');
+  fNg.textContent = aluNg ? '1' : '0';
+  fNg.className = 'flag-val ' + (aluNg ? 'on' : 'off');
+  fEq.textContent = aluZr ? '✓' : '·';
+  fEq.className = 'flag-val ' + (aluZr ? 'on' : 'off');
+  fGt.textContent = (!aluZr && !aluNg) ? '✓' : '·';
+  fGt.className = 'flag-val ' + ((!aluZr && !aluNg) ? 'on' : 'off');
+  fLt.textContent = aluNg ? '✓' : '·';
+  fLt.className = 'flag-val ' + (aluNg ? 'on' : 'off');
+
+  // Current instruction
+  if (PC >= 0 && PC < romLength) {
+    document.getElementById('cur-bin').textContent = toBin16(ROM[PC] & 0xFFFF);
+    document.getElementById('cur-asm').textContent = PC < sourceLines.length ? sourceLines[PC].asm : '???';
+  }
+
+  // RAM Watch
+  updateRAMWatch();
+
+  // Cycle counter
+  $cycleCounter.textContent = `CYC: ${cycleCount.toLocaleString()}`;
+}
+
+function updateRAMWatch() {
+  const watchAddrs = [0, 1, 2, 3, 4, 5, 13, 14, 15, SCREEN_BASE, KBD_ADDR, regA & 0x7FFF];
+  const labels = ['SP', 'LCL', 'ARG', 'THIS', 'THAT', 'R5', 'R13', 'R14', 'R15', 'SCR', 'KBD', 'M[A]'];
+  const $rw = document.getElementById('ram-watch');
+  let html = '';
+  for (let i = 0; i < watchAddrs.length; i++) {
+    const a = watchAddrs[i];
+    const v = (a >= 0 && a < RAM_SIZE) ? RAM[a] : 0;
+    html += `<div class="ram-item"><span class="ram-addr">${labels[i]}</span><span class="ram-val">${v}</span></div>`;
+  }
+  $rw.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CONTROLS
+// ═══════════════════════════════════════════════════════════════
+
+function setStatus(state, text) {
+  $statusInd.className = state;
+  $statusText.textContent = text;
+}
+
+function doRun() {
+  if (romLength === 0) return;
+  running = true;
+  setStatus('running', 'RUNNING');
+}
+
+function doPause() {
+  running = false;
+  setStatus('paused', 'PAUSED');
+}
+
+function doStep() {
+  if (romLength === 0) return;
+  running = false;
+  cpuStep();
+  setStatus('paused', 'STEP');
+  updateCPUState();
+  updateDisasmHighlight();
+}
+
+function doReset() {
+  running = false;
+  regA = 0; regD = 0; PC = 0;
+  cycleCount = 0;
+  aluZr = false; aluNg = false;
+  RAM.fill(0);
+  memReadFlash.fill(0);
+  memWriteFlash.fill(0);
+  setStatus('', 'RESET');
+  updateCPUState();
+  updateDisasmHighlight();
+}
+
+// Speed slider
+$speedSlider.addEventListener('input', () => {
+  const idx = parseInt($speedSlider.value) - 1;
+  cyclesPerFrame = SPEED_MAP[idx];
+  $speedVal.textContent = cyclesPerFrame.toLocaleString() + '/f';
+});
+$speedSlider.dispatchEvent(new Event('input'));
+
+// ═══════════════════════════════════════════════════════════════
+//  EDITOR / ASSEMBLER
+// ═══════════════════════════════════════════════════════════════
+
+function openEditor() {
+  $overlay.classList.add('visible');
+  $asmError.classList.remove('visible');
+  $editor.focus();
+}
+
+function closeEditor() {
+  $overlay.classList.remove('visible');
+}
+
+function assembleAndLoad() {
+  const src = $editor.value;
+  try {
+    const result = assemble(src);
+    // Load into ROM
+    ROM.fill(0);
+    for (let i = 0; i < result.output.length; i++) {
+      ROM[i] = result.output[i];
+    }
+    romLength = result.output.length;
+    sourceLines = result.srcMap;
+
+    // Reset machine
+    doReset();
+    buildDisasmView();
+    updateDisasmHighlight();
+
+    $asmError.classList.remove('visible');
+    closeEditor();
+    setStatus('paused', 'LOADED');
+  } catch (e) {
+    $asmError.textContent = '⚠ ' + e.message;
+    $asmError.classList.add('visible');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  KEYBOARD INPUT
+// ═══════════════════════════════════════════════════════════════
+
+const KEY_MAP = {
+  'Enter': 128, 'Backspace': 129, 'ArrowLeft': 130, 'ArrowUp': 131,
+  'ArrowRight': 132, 'ArrowDown': 133, 'Home': 134, 'End': 135,
+  'PageUp': 136, 'PageDown': 137, 'Insert': 138, 'Delete': 139,
+  'Escape': 140, 'F1': 141, 'F2': 142, 'F3': 143, 'F4': 144,
+  'F5': 145, 'F6': 146, 'F7': 147, 'F8': 148, 'F9': 149,
+  'F10': 150, 'F11': 151, 'F12': 152,
+};
+
+document.addEventListener('keydown', (e) => {
+  if ($overlay.classList.contains('visible')) return;
+  let code = 0;
+  if (KEY_MAP[e.key] !== undefined) {
+    code = KEY_MAP[e.key];
+  } else if (e.key.length === 1) {
+    code = e.key.charCodeAt(0);
+  }
+  if (code) {
+    RAM[KBD_ADDR] = code;
+    e.preventDefault();
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  if ($overlay.classList.contains('visible')) return;
+  RAM[KBD_ADDR] = 0;
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  MAIN LOOP
+// ═══════════════════════════════════════════════════════════════
+
+let lastTime = performance.now();
+let frameCount = 0;
+let hzTimer = 0;
+let measuredHz = 0;
+
+function mainLoop(now) {
+  requestAnimationFrame(mainLoop);
+
+  if (running && romLength > 0) {
+    let stepsThisFrame = cyclesPerFrame;
+    for (let i = 0; i < stepsThisFrame; i++) {
+      cpuStep();
+      // Check breakpoints
+      if (breakpoints.has(PC)) {
+        running = false;
+        setStatus('paused', `BREAK @${PC}`);
+        break;
+      }
+      // Halt if PC out of range
+      if (PC >= romLength) {
+        running = false;
+        setStatus('', 'HALTED');
+        break;
+      }
+    }
+  }
+
+  // Update visuals (~60fps)
+  updateMemoryMap();
+  updateScreen();
+  updateCPUState();
+  updateDisasmHighlight();
+
+  // Hz measurement
+  frameCount++;
+  hzTimer += now - lastTime;
+  lastTime = now;
+  if (hzTimer >= 1000) {
+    measuredHz = frameCount;
+    frameCount = 0;
+    hzTimer = 0;
+    $cpuHz.textContent = `${measuredHz} fps`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DEFAULT PROGRAM
+// ═══════════════════════════════════════════════════════════════
+
+const DEFAULT_PROGRAM = `// ═══════════════════════════════════════
+// HACK//DEBUGGER — Demo Program
+// Draws a diagonal pattern across the screen
+// and fills with animated checkerboard
+// ═══════════════════════════════════════
+
+// Initialize: fill screen with a pattern
+// R0 = pixel counter
+// R1 = current screen address
+// R2 = pattern value
+
+  @SCREEN
+  D=A
+  @R1
+  M=D         // R1 = SCREEN base (16384)
+
+  @0
+  D=A
+  @R0
+  M=D         // R0 = counter = 0
+
+  @pattern
+  D=A
+  @R2
+  M=D         // R2 = initial pattern
+
+(LOOP)
+  // Check if we've filled all 8192 words
+  @8192
+  D=A
+  @R0
+  D=M-D
+  @DONE
+  D;JGE       // if R0 >= 8192, goto DONE
+
+  // Compute pattern based on counter
+  @R0
+  D=M
+  @R2
+  M=D         // pattern = counter (creates diagonal lines)
+
+  // Write pattern to screen
+  @R2
+  D=M
+  @R1
+  A=M
+  M=D         // RAM[R1] = pattern
+
+  // Increment address and counter
+  @R1
+  M=M+1
+  @R0
+  M=M+1
+
+  @LOOP
+  0;JMP
+
+(DONE)
+  // Second pass: XOR-style animation
+  // Reset to screen start
+  @SCREEN
+  D=A
+  @R1
+  M=D
+  @0
+  D=A
+  @R0
+  M=D
+
+  // Read keyboard for interactivity
+  @KBD
+  D=M
+  @R3
+  M=D         // R3 = key code
+
+(LOOP2)
+  @8192
+  D=A
+  @R0
+  D=M-D
+  @RESTART
+  D;JGE
+
+  // Create shifting pattern using counter + keyboard
+  @R0
+  D=M
+  @R3
+  D=D+M       // D = counter + keycode
+
+  // Write to screen
+  @R1
+  A=M
+  M=D
+
+  @R1
+  M=M+1
+  @R0
+  M=M+1
+
+  @LOOP2
+  0;JMP
+
+(RESTART)
+  // Loop forever — restart second pass
+  @SCREEN
+  D=A
+  @R1
+  M=D
+  @0
+  D=A
+  @R0
+  M=D
+
+  // Increment base pattern for animation
+  @R3
+  M=M+1
+
+  @LOOP2
+  0;JMP
+
+(pattern)
+  @21845
+  D=A
+`;
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+
+$editor.value = DEFAULT_PROGRAM;
+// Auto-assemble default program
+try {
+  const result = assemble(DEFAULT_PROGRAM);
+  ROM.fill(0);
+  for (let i = 0; i < result.output.length; i++) ROM[i] = result.output[i];
+  romLength = result.output.length;
+  sourceLines = result.srcMap;
+  buildDisasmView();
+  updateDisasmHighlight();
+  setStatus('paused', 'READY');
+} catch (e) {
+  console.error('Default program assembly error:', e);
+}
+
+requestAnimationFrame(mainLoop);
+</script>
+</body>
+</html>

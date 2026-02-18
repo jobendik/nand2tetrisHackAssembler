@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HACK // RETRO DEBUGGER</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --border: #444;
+            --text-main: #ccc;
+            --text-dim: #666;
+            --accent-cyan: #00bcd4;
+            --accent-green: #4caf50;
+            --accent-red: #f44336;
+            --accent-yellow: #ffeb3b;
+            --font-stack: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-stack);
+            margin: 0;
+            padding: 10px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Layout Grid */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            grid-template-rows: 60% 40%;
+            gap: 10px;
+            height: 100%;
+            width: 100%;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: #252525;
+            padding: 5px 10px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-dim);
+            font-weight: bold;
+        }
+
+        .panel-content {
+            flex: 1;
+            position: relative;
+            overflow: auto;
+        }
+
+        /* Panel 1: Code / Disassembly */
+        #code-editor {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            color: #a0a0a0;
+            border: none;
+            resize: none;
+            padding: 10px;
+            font-family: var(--font-stack);
+            font-size: 13px;
+            line-height: 18px;
+            outline: none;
+            white-space: pre;
+            tab-size: 4;
+        }
+
+        .highlight-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            background: rgba(0, 188, 212, 0.15);
+            border-left: 2px solid var(--accent-cyan);
+            pointer-events: none;
+            height: 18px; /* Matches line-height */
+            display: none;
+        }
+
+        .gutter {
+            position: absolute;
+            left: 0;
+            top: 10px;
+            width: 40px;
+            text-align: right;
+            padding-right: 10px;
+            color: #444;
+            font-size: 13px;
+            line-height: 18px;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* Panel 2: Memory Map */
+        .memory-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            background: #000;
+        }
+        
+        canvas#memCanvas {
+            image-rendering: pixelated;
+            border: 1px solid #333;
+            width: 256px; /* Scaled up for visibility */
+            height: 512px;
+        }
+
+        .legend {
+            font-size: 10px;
+            margin-top: 5px;
+            display: flex;
+            gap: 10px;
+        }
+        .legend span { display: flex; align-items: center; gap: 4px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        /* Panel 3: Screen */
+        .screen-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            background: #111;
+        }
+        canvas#screenCanvas {
+            border: 1px solid #333;
+            background: #e0f0e0; /* Classic LCD tint */
+            image-rendering: pixelated;
+        }
+
+        /* Panel 4: Controls & CPU */
+        .cpu-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            padding: 15px;
+            gap: 15px;
+            font-size: 12px;
+        }
+
+        .reg-box {
+            background: #111;
+            border: 1px solid #333;
+            padding: 8px;
+        }
+
+        .reg-title { color: var(--text-dim); margin-bottom: 4px; display: block;}
+        .reg-val { font-size: 16px; color: var(--accent-cyan); font-weight: bold; }
+        .reg-hex { font-size: 11px; color: #555; float: right; margin-top: 4px; }
+
+        .controls {
+            grid-column: span 2;
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            background: #222;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        button {
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 5px 12px;
+            cursor: pointer;
+            font-family: var(--font-stack);
+            font-size: 11px;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        button:hover { background: #444; border-color: #777; }
+        button:active { background: #222; }
+        button.primary { background: var(--accent-cyan); color: #000; border: none; font-weight: bold; }
+        button.primary:hover { background: #00acc1; }
+
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            margin-left: 10px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: #444;
+            outline: none;
+        }
+
+        /* Scrollbar customization */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #444; }
+
+    </style>
+</head>
+<body>
+
+    <div class="dashboard">
+        <!-- Panel 1: Source Code -->
+        <div class="panel" style="grid-row: 1; grid-column: 1;">
+            <div class="panel-header">
+                <span>ROM Assembly</span>
+                <span id="rom-status" style="color: var(--accent-yellow)">EDIT MODE</span>
+            </div>
+            <div class="panel-content" id="editor-container">
+                <div id="highlight" class="highlight-line"></div>
+                <textarea id="code-editor" spellcheck="false">// HACK VISUALIZER DEMO
+// Draws a moving pattern to screen
+// and increments a counter in RAM
+
+(START)
+    @16384  // Screen base address
+    D=A
+    @arr    // Pixel pointer
+    M=D
+
+    @0
+    D=A
+    @val    // Pattern value
+    M=D
+
+(LOOP)
+    // Increment Counter (Watch RAM[16] flash!)
+    @counter
+    M=M+1
+    
+    // Change pattern based on counter
+    @counter
+    D=M
+    @val
+    M=D
+
+    // Draw to Screen
+    @val
+    D=M
+    @arr
+    A=M     // Get screen address
+    M=D     // Write pattern
+
+    // Increment screen pointer
+    @arr
+    MD=M+1
+    
+    // Check if end of screen (24576)
+    @24576
+    D=D-A
+    @RESET_PTR
+    D;JEQ
+
+    @LOOP
+    0;JMP
+
+(RESET_PTR)
+    @16384
+    D=A
+    @arr
+    M=D
+    @LOOP
+    0;JMP
+</textarea>
+            </div>
+        </div>
+
+        <!-- Panel 2: Visual Memory Map -->
+        <div class="panel" style="grid-row: 1 / span 2; grid-column: 2;">
+            <div class="panel-header">
+                <span>Visual Memory (32K)</span>
+                <span>RAM[0..32K]</span>
+            </div>
+            <div class="panel-content memory-container">
+                <!-- 128 x 256 = 32768 pixels. One pixel per register. -->
+                <canvas id="memCanvas" width="128" height="256"></canvas>
+                <div class="legend">
+                    <span><div class="dot" style="background: var(--accent-green)"></div> READ</span>
+                    <span><div class="dot" style="background: var(--accent-red)"></div> WRITE</span>
+                    <span><div class="dot" style="background: #fff"></div> DATA</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel 3: CPU & Controls -->
+        <div class="panel" style="grid-row: 2; grid-column: 1;">
+            <div class="panel-header">
+                <span>CPU State</span>
+                <span id="cycle-count">CYCLES: 0</span>
+            </div>
+            <div class="panel-content cpu-grid">
+                <div class="reg-box">
+                    <span class="reg-title">REG A (Address)</span>
+                    <span class="reg-val" id="reg-a">0</span>
+                    <span class="reg-hex" id="reg-a-hex">0x0000</span>
+                </div>
+                <div class="reg-box">
+                    <span class="reg-title">REG D (Data)</span>
+                    <span class="reg-val" id="reg-d">0</span>
+                    <span class="reg-hex" id="reg-d-hex">0x0000</span>
+                </div>
+                <div class="reg-box">
+                    <span class="reg-title">PC (Program Counter)</span>
+                    <span class="reg-val" id="reg-pc">0</span>
+                    <span class="reg-hex" id="reg-pc-hex">0x0000</span>
+                </div>
+                <div class="reg-box">
+                    <span class="reg-title">FLAGS</span>
+                    <span class="reg-val" id="flags" style="font-size: 12px; color: #fff;">-</span>
+                </div>
+
+                <div class="controls">
+                    <button class="primary" id="btn-load">ASM -> LOAD</button>
+                    <div style="width: 1px; background: #444; height: 20px; margin: 0 5px;"></div>
+                    <button id="btn-run">RUN</button>
+                    <button id="btn-step">STEP</button>
+                    <button id="btn-reset">RESET</button>
+                    
+                    <div class="slider-container">
+                        <span style="font-size: 9px; color: #888;">SPEED (Cycles/Frame)</span>
+                        <input type="range" id="speed-slider" min="1" max="1000" value="50">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel 4: Screen Output -->
+        <div class="panel" style="grid-position: absolute; bottom: 20px; right: 20px; display: none;">
+            <!-- Hidden placeholder, we integrate screen into grid differently if needed, 
+                 but per request, "Panel 3" is bottom right. 
+                 Wait, my grid is 2 cols. 
+                 Row 1, Col 1: Code
+                 Row 1-2, Col 2: Memory
+                 Row 2, Col 1: CPU
+                 
+                 Wait, standard Hack screen is 512x256. Fitting that in a dashboard requires space.
+                 Let's adjust the grid logic in CSS to make Screen prominent.
+                 
+                 Actually, let's put the screen overlaying the Memory Map? No, separate.
+                 Let's re-arrange:
+                 Top Left: Code
+                 Bottom Left: CPU
+                 Top Right: Memory Map (Tall)
+                 Bottom Right: SCREEN (needs 2:1 aspect)
+            -->
+        </div>
+        
+        <!-- Re-doing Grid for Screen placement -->
+        <style>
+            .dashboard {
+                grid-template-columns: 1fr 1fr; /* Two equal columns */
+                grid-template-rows: 2fr 1fr;    /* Tall top, short bottom */
+            }
+            /* Override for specific layout requested */
+        </style>
+        
+        <!-- Correct Layout Implementation via inline styles reset -->
+        <script>
+            // No script needed, just fixing the DOM structure below
+        </script>
+
+    </div>
+
+    <!-- Corrected DOM Structure for 4 Quadrants -->
+    <script>
+        document.body.innerHTML = `
+        <div class="dashboard" style="display: grid; grid-template-columns: 40% 60%; grid-template-rows: 60% 40%; gap: 8px; height: 100%;">
+            
+            <!-- TL: Code -->
+            <div class="panel" style="grid-row: 1; grid-column: 1;">
+                 <div class="panel-header"><span>ASM / ROM</span> <span id="rom-status" style="color:var(--accent-yellow)">EDIT</span></div>
+                 <div class="panel-content" style="position:relative">
+                    <div id="highlight" class="highlight-line"></div>
+                    <textarea id="code-editor" spellcheck="false">${document.getElementById('code-editor').value}</textarea>
+                 </div>
+            </div>
+
+            <!-- TR: Memory Map (Visualizer) -->
+            <div class="panel" style="grid-row: 1; grid-column: 2; display: flex;">
+                <div class="panel-header"><span>RAM HEATMAP (0-32K)</span> <span style="font-size:10px; color:#666">LIVE VIEW</span></div>
+                <div class="panel-content memory-container" style="background:#050505; flex-direction:row; gap: 20px;">
+                    <canvas id="memCanvas" width="128" height="256" style="height: 95%; width: auto; aspect-ratio: 1/2; border: 1px solid #333"></canvas>
+                    <div style="display:flex; flex-direction:column; justify-content:center; gap:10px; font-size: 11px; color: #666;">
+                        <div><div class="dot" style="background:var(--accent-green); display:inline-block"></div> READ</div>
+                        <div><div class="dot" style="background:var(--accent-red); display:inline-block"></div> WRITE</div>
+                        <div><div class="dot" style="background:#fff; display:inline-block"></div> NON-ZERO</div>
+                        <div style="margin-top:20px; border-top:1px solid #333; paddingTop:5px">
+                            ADDR: <span id="hover-addr" style="color:white">0</span><br>
+                            VAL: <span id="hover-val" style="color:white">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BL: CPU -->
+            <div class="panel" style="grid-row: 2; grid-column: 1;">
+                <div class="panel-header"><span>CPU & CONTROLS</span> <span id="cycle-count">T=0</span></div>
+                <div class="panel-content cpu-grid">
+                     <div class="reg-box"><span class="reg-title">A</span><span class="reg-val" id="reg-a">0</span><span class="reg-hex" id="reg-a-hex">0x0000</span></div>
+                     <div class="reg-box"><span class="reg-title">D</span><span class="reg-val" id="reg-d">0</span><span class="reg-hex" id="reg-d-hex">0x0000</span></div>
+                     <div class="reg-box"><span class="reg-title">PC</span><span class="reg-val" id="reg-pc">0</span><span class="reg-hex" id="reg-pc-hex">0x0000</span></div>
+                     <div class="controls">
+                        <button class="primary" id="btn-load">LOAD</button>
+                        <button id="btn-run">RUN</button>
+                        <button id="btn-step">STEP</button>
+                        <button id="btn-reset">RESET</button>
+                        <div class="slider-container">
+                            <span style="font-size:9px">SPEED</span>
+                            <input type="range" id="speed-slider" min="1" max="5000" value="100">
+                        </div>
+                     </div>
+                </div>
+            </div>
+
+            <!-- BR: Screen -->
+            <div class="panel" style="grid-row: 2; grid-column: 2;">
+                <div class="panel-header"><span>HACK DISPLAY (512x256)</span></div>
+                <div class="panel-content screen-container">
+                    <canvas id="screenCanvas" width="512" height="256" style="width: 95%; height: auto;"></canvas>
+                </div>
+            </div>
+        </div>
+        `;
+    </script>
+
+    <script>
+        // --- CONSTANTS & CONFIG ---
+        const RAM_SIZE = 32768;
+        const SCREEN_START = 16384;
+        const SCREEN_END = 24575;
+        const KBD_ADDR = 24576;
+        
+        // --- EMULATOR STATE ---
+        const state = {
+            ROM: new Uint16Array(32768), // 32K Instruction memory
+            RAM: new Int16Array(32768),  // 32K Data memory (using Int16 to handle negative numbers easily)
+            A: 0,
+            D: 0,
+            PC: 0,
+            running: false,
+            cyclesPerFrame: 100,
+            totalCycles: 0,
+            sourceMap: [] // Maps ROM index to Source Line number
+        };
+
+        // --- VISUALIZATION STATE ---
+        // We track access type and timestamp for the heatmap
+        // Using Uint32Array where bits 0-23 are timestamp, bits 24-31 are flags
+        const memAccess = new Float32Array(RAM_SIZE); // Store "heat" 0.0 to 1.0
+        const memType = new Uint8Array(RAM_SIZE); // 0=None, 1=Read, 2=Write
+
+        // --- DOM ELEMENTS ---
+        const els = {
+            code: document.getElementById('code-editor'),
+            highlight: document.getElementById('highlight'),
+            romStatus: document.getElementById('rom-status'),
+            regA: document.getElementById('reg-a'),
+            regAHex: document.getElementById('reg-a-hex'),
+            regD: document.getElementById('reg-d'),
+            regDHex: document.getElementById('reg-d-hex'),
+            regPC: document.getElementById('reg-pc'),
+            regPCHex: document.getElementById('reg-pc-hex'),
+            cycleCount: document.getElementById('cycle-count'),
+            memCanvas: document.getElementById('memCanvas'),
+            screenCanvas: document.getElementById('screenCanvas'),
+            hoverAddr: document.getElementById('hover-addr'),
+            hoverVal: document.getElementById('hover-val'),
+            speed: document.getElementById('speed-slider'),
+            btnLoad: document.getElementById('btn-load'),
+            btnRun: document.getElementById('btn-run'),
+            btnStep: document.getElementById('btn-step'),
+            btnReset: document.getElementById('btn-reset'),
+        };
+
+        const ctxMem = els.memCanvas.getContext('2d');
+        const ctxScreen = els.screenCanvas.getContext('2d');
+        const screenImageData = ctxScreen.createImageData(512, 256);
+        const memImageData = ctxMem.createImageData(128, 256); // 128 * 256 = 32768 pixels
+
+        // --- ASSEMBLER ---
+        const COMP_TABLE = {
+            "0": "0101010", "1": "0111111", "-1": "0111010", "D": "0001100",
+            "A": "0110000", "!D": "0001101", "!A": "0110001", "-D": "0001111",
+            "-A": "0110011", "D+1": "0011111", "A+1": "0110111", "D-1": "0001110",
+            "A-1": "0110010", "D+A": "0000010", "D-A": "0010011", "A-D": "0000111",
+            "D&A": "0000000", "D|A": "0010101", "M": "1110000", "!M": "1110001",
+            "-M": "1110011", "M+1": "1110111", "M-1": "1110010", "D+M": "1000010",
+            "D-M": "1010011", "M-D": "1000111", "D&M": "1000000", "D|M": "1010101"
+        };
+
+        const DEST_TABLE = {
+            "null": "000", "M": "001", "D": "010", "MD": "011",
+            "A": "100", "AM": "101", "AD": "110", "AMD": "111"
+        };
+
+        const JUMP_TABLE = {
+            "null": "000", "JGT": "001", "JEQ": "010", "JGE": "011",
+            "JLT": "100", "JNE": "101", "JLE": "110", "JMP": "111"
+        };
+
+        const PREDEF_SYMBOLS = {
+            "SP": 0, "LCL": 1, "ARG": 2, "THIS": 3, "THAT": 4,
+            "R0": 0, "R1": 1, "R2": 2, "R3": 3, "R4": 4, "R5": 5, "R6": 6, "R7": 7,
+            "R8": 8, "R9": 9, "R10": 10, "R11": 11, "R12": 12, "R13": 13, "R14": 14, "R15": 15,
+            "SCREEN": 16384, "KBD": 24576
+        };
+
+        function assemble(source) {
+            const lines = source.split('\n');
+            const cleanLines = [];
+            
+            // Pre-process: strip comments and whitespace, keep line mapping
+            lines.forEach((line, index) => {
+                const clean = line.split('//')[0].trim();
+                if (clean.length > 0) {
+                    cleanLines.push({ text: clean, origLine: index });
+                }
+            });
+
+            const symbols = { ...PREDEF_SYMBOLS };
+            let variableAddr = 16;
+            const instructions = [];
+            const map = []; // ROM index -> Source Line
+
+            // Pass 1: Labels
+            let romIndex = 0;
+            cleanLines.forEach(item => {
+                const line = item.text;
+                if (line.startsWith('(') && line.endsWith(')')) {
+                    const label = line.substring(1, line.length - 1);
+                    symbols[label] = romIndex;
+                } else {
+                    romIndex++;
+                }
+            });
+
+            // Pass 2: Translation
+            romIndex = 0;
+            cleanLines.forEach(item => {
+                const line = item.text;
+                if (line.startsWith('(')) return; // Skip labels
+
+                let binary = 0;
+                
+                // A-Instruction
+                if (line.startsWith('@')) {
+                    const val = line.substring(1);
+                    let addr;
+                    if (!isNaN(val)) {
+                        addr = parseInt(val);
+                    } else {
+                        if (symbols.hasOwnProperty(val)) {
+                            addr = symbols[val];
+                        } else {
+                            symbols[val] = variableAddr++;
+                            addr = symbols[val];
+                        }
+                    }
+                    binary = addr; // No opcode needed, bit 15 is 0
+                } 
+                // C-Instruction
+                else {
+                    let dest = "null";
+                    let comp = "";
+                    let jump = "null";
+                    
+                    let parts = line;
+                    if (parts.includes('=')) {
+                        const split = parts.split('=');
+                        dest = split[0];
+                        parts = split[1];
+                    }
+                    if (parts.includes(';')) {
+                        const split = parts.split(';');
+                        comp = split[0];
+                        jump = split[1];
+                    } else {
+                        comp = parts;
+                    }
+
+                    // Assemble parts
+                    // 111 a cccccc ddd jjj
+                    const a_c = COMP_TABLE[comp];
+                    const d = DEST_TABLE[dest];
+                    const j = JUMP_TABLE[jump];
+                    
+                    if (!a_c || !d || !j) {
+                        throw new Error(`Syntax Error at line ${item.origLine + 1}: ${line}`);
+                    }
+                    
+                    binary = parseInt(`111${a_c}${d}${j}`, 2);
+                }
+
+                instructions.push(binary);
+                map[romIndex] = item.origLine;
+                romIndex++;
+            });
+
+            return { instructions, map };
+        }
+
+        // --- EMULATOR CORE ---
+        
+        function reset() {
+            state.A = 0;
+            state.D = 0;
+            state.PC = 0;
+            state.totalCycles = 0;
+            state.running = false;
+            // Clear RAM
+            for(let i=0; i<RAM_SIZE; i++) {
+                state.RAM[i] = 0;
+                memAccess[i] = 0; // Clear heat
+                memType[i] = 0;
+            }
+            updateUI();
+            updateScreen();
+            drawMemoryHeatmap();
+            els.btnRun.textContent = "RUN";
+            els.btnRun.style.backgroundColor = "";
+            els.romStatus.textContent = "READY";
+            els.romStatus.style.color = "var(--accent-green)";
+        }
+
+        // Helper to visualize RAM access
+        function readRAM(addr) {
+            if (addr === KBD_ADDR) {
+                // Return current keyboard code
+                return state.RAM[KBD_ADDR];
+            }
+            // Heatmap logic
+            memAccess[addr] = 1.0; 
+            memType[addr] = 1; // Read
+            return state.RAM[addr];
+        }
+
+        function writeRAM(addr, val) {
+            // Clip to 16-bit signed
+            if (val > 32767) val -= 65536;
+            if (val < -32768) val += 65536;
+
+            state.RAM[addr] = val;
+            memAccess[addr] = 1.0;
+            memType[addr] = 2; // Write
+        }
+
+        function tick() {
+            if (state.PC < 0 || state.PC >= 32768) {
+                state.running = false;
+                alert("PC out of bounds!");
+                return;
+            }
+
+            const instruction = state.ROM[state.PC];
+            state.totalCycles++;
+
+            // Decode
+            if ((instruction & 0x8000) === 0) {
+                // A-Instruction: 0vvv vvvv vvvv vvvv
+                state.A = instruction;
+                state.PC++;
+            } else {
+                // C-Instruction: 111a cccccc ddd jjj
+                // Bits: 15,14,13=111, 12=a, 11-6=comp, 5-3=dest, 2-0=jump
+                
+                const a = (instruction & 0x1000) >> 12;
+                const comp = (instruction & 0x0FC0) >> 6;
+                const dest = (instruction & 0x0038) >> 3;
+                const jump = instruction & 0x0007;
+
+                // ALU Computation
+                let x = state.D;
+                let y = (a === 0) ? state.A : readRAM(state.A);
+                let out = 0;
+
+                // Simple ALU switch based on comp bits (c1..c6)
+                switch(comp) {
+                    case 42: out = 0; break;   // 101010
+                    case 63: out = 1; break;   // 111111
+                    case 58: out = -1; break;  // 111010
+                    case 12: out = x; break;   // 001100
+                    case 48: out = y; break;   // 110000
+                    case 13: out = ~x; break;  // 001101
+                    case 49: out = ~y; break;  // 110001
+                    case 15: out = -x; break;  // 001111
+                    case 51: out = -y; break;  // 110011
+                    case 31: out = x + 1; break; // 011111
+                    case 55: out = y + 1; break; // 110111
+                    case 14: out = x - 1; break; // 001110
+                    case 50: out = y - 1; break; // 110010
+                    case 2:  out = x + y; break; // 000010
+                    case 19: out = x - y; break; // 010011
+                    case 7:  out = y - x; break; // 000111
+                    case 0:  out = x & y; break; // 000000
+                    case 21: out = x | y; break; // 010101
+                    default: out = 0; // Should not happen if valid assembler
+                }
+
+                // Store Result
+                if (dest & 1) writeRAM(state.A, out); // M
+                if (dest & 2) state.D = out;          // D
+                if (dest & 4) state.A = out;          // A
+
+                // Jump Logic
+                let shouldJump = false;
+                if (jump > 0) {
+                    const isNeg = out < 0;
+                    const isZero = out === 0;
+                    const isPos = out > 0;
+
+                    if (jump === 1 && isPos) shouldJump = true; // JGT
+                    if (jump === 2 && isZero) shouldJump = true; // JEQ
+                    if (jump === 3 && (isPos || isZero)) shouldJump = true; // JGE
+                    if (jump === 4 && isNeg) shouldJump = true; // JLT
+                    if (jump === 5 && !isZero) shouldJump = true; // JNE
+                    if (jump === 6 && (isNeg || isZero)) shouldJump = true; // JLE
+                    if (jump === 7) shouldJump = true; // JMP
+                }
+
+                if (shouldJump) {
+                    state.PC = state.A;
+                } else {
+                    state.PC++;
+                }
+            }
+        }
+
+        // --- UI UPDATES ---
+
+        function toHex(n) {
+            // Handle signed 16-bit for display
+            let val = n & 0xFFFF;
+            return '0x' + val.toString(16).toUpperCase().padStart(4, '0');
+        }
+
+        function updateUI() {
+            els.regA.innerText = state.A;
+            els.regAHex.innerText = toHex(state.A);
+            els.regD.innerText = state.D;
+            els.regDHex.innerText = toHex(state.D);
+            els.regPC.innerText = state.PC;
+            els.regPCHex.innerText = toHex(state.PC);
+            els.cycleCount.innerText = "T=" + state.totalCycles;
+
+            // Highlight Code Line
+            if (state.sourceMap[state.PC] !== undefined) {
+                const lineIndex = state.sourceMap[state.PC];
+                const lineHeight = 18; // px, from CSS
+                els.highlight.style.display = 'block';
+                els.highlight.style.top = (lineIndex * lineHeight + 10) + 'px'; // +10 for padding
+                
+                // Auto scroll
+                const container = els.code.parentElement;
+                const scrollPos = (lineIndex * lineHeight);
+                if (scrollPos < container.scrollTop || scrollPos > container.scrollTop + container.clientHeight - 50) {
+                    container.scrollTop = scrollPos - 50;
+                }
+            } else {
+                els.highlight.style.display = 'none';
+            }
+        }
+
+        function drawMemoryHeatmap() {
+            const buf = memImageData.data;
+            const ram = state.RAM;
+            
+            // Iterate 32K words
+            for (let i = 0; i < RAM_SIZE; i++) {
+                const base = i * 4;
+                
+                // Decay heat
+                if (memAccess[i] > 0) {
+                    memAccess[i] -= 0.05; // Fade speed
+                    if (memAccess[i] < 0) memAccess[i] = 0;
+                }
+
+                const heat = memAccess[i];
+                const val = ram[i];
+                const type = memType[i];
+
+                if (heat > 0.01) {
+                    // Flash based on type
+                    if (type === 1) { // READ - Green
+                        buf[base] = 0;
+                        buf[base+1] = 255 * heat;
+                        buf[base+2] = 0;
+                    } else if (type === 2) { // WRITE - Red
+                        buf[base] = 255 * heat;
+                        buf[base+1] = 0;
+                        buf[base+2] = 0;
+                    }
+                    buf[base+3] = 255;
+                } else {
+                    // Resting state
+                    if (val !== 0) {
+                        // Show grey pixel for non-zero data
+                        const intensity = 50 + (Math.abs(val) % 100);
+                        buf[base] = intensity;
+                        buf[base+1] = intensity;
+                        buf[base+2] = intensity;
+                        buf[base+3] = 255;
+                    } else {
+                        // Black
+                        buf[base] = 0;
+                        buf[base+1] = 0;
+                        buf[base+2] = 0;
+                        buf[base+3] = 255;
+                    }
+                }
+            }
+            ctxMem.putImageData(memImageData, 0, 0);
+        }
+
+        function updateScreen() {
+            // Screen is at 16384. Length 8192 words.
+            // 512 cols / 16 bits = 32 words per row.
+            // 256 rows.
+            const buf = screenImageData.data;
+            let pixelIdx = 0;
+
+            for (let addr = SCREEN_START; addr <= SCREEN_END; addr++) {
+                const word = state.RAM[addr];
+                for (let bit = 0; bit < 16; bit++) {
+                    const isSet = (word & (1 << bit)) !== 0;
+                    const color = isSet ? 0 : 224; // Black or LCD Greenish White
+                    
+                    buf[pixelIdx++] = color; // R
+                    buf[pixelIdx++] = color + (isSet ? 0 : 16); // G (slight tint)
+                    buf[pixelIdx++] = color; // B
+                    buf[pixelIdx++] = 255;   // A
+                }
+            }
+            ctxScreen.putImageData(screenImageData, 0, 0);
+        }
+
+        // --- MAIN LOOP ---
+        function frame() {
+            if (state.running) {
+                const limit = parseInt(els.speed.value);
+                for(let i=0; i<limit; i++) {
+                    tick();
+                    if (!state.running) break;
+                }
+                updateUI();
+                updateScreen();
+            }
+            
+            // Always draw heatmap
+            drawMemoryHeatmap();
+            
+            requestAnimationFrame(frame);
+        }
+
+        // --- CONTROLS EVENTS ---
+
+        els.btnLoad.addEventListener('click', () => {
+            try {
+                reset();
+                const result = assemble(els.code.value);
+                
+                // Load ROM
+                for(let i=0; i<result.instructions.length; i++) {
+                    state.ROM[i] = result.instructions[i];
+                }
+                state.sourceMap = result.map;
+                
+                els.romStatus.innerText = "LOADED (" + result.instructions.length + " words)";
+                els.romStatus.style.color = "var(--accent-cyan)";
+                updateUI();
+            } catch (e) {
+                alert(e.message);
+            }
+        });
+
+        els.btnRun.addEventListener('click', () => {
+            state.running = !state.running;
+            els.btnRun.textContent = state.running ? "PAUSE" : "RUN";
+            els.btnRun.style.backgroundColor = state.running ? "var(--accent-yellow)" : "";
+            els.btnRun.style.color = state.running ? "black" : "white";
+        });
+
+        els.btnStep.addEventListener('click', () => {
+            state.running = false;
+            els.btnRun.textContent = "RUN";
+            els.btnRun.style.backgroundColor = "";
+            tick();
+            updateUI();
+            updateScreen();
+            drawMemoryHeatmap();
+        });
+
+        els.btnReset.addEventListener('click', reset);
+
+        // Memory Hover Interaction
+        els.memCanvas.addEventListener('mousemove', (e) => {
+            const rect = els.memCanvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / (rect.width / 128));
+            const y = Math.floor((e.clientY - rect.top) / (rect.height / 256));
+            
+            // 128 width, y * 128 + x
+            const addr = y * 128 + x;
+            if (addr >= 0 && addr < RAM_SIZE) {
+                els.hoverAddr.innerText = addr + " (0x" + addr.toString(16).toUpperCase() + ")";
+                els.hoverVal.innerText = state.RAM[addr];
+            }
+        });
+
+        // Keyboard Interaction
+        document.addEventListener('keydown', (e) => {
+            // Basic ASCII mapping
+            let code = e.keyCode;
+            if (code === 37) code = 130; // Left
+            if (code === 38) code = 131; // Up
+            if (code === 39) code = 132; // Right
+            if (code === 40) code = 133; // Down
+            if (code === 13) code = 128; // Enter
+            if (code === 8)  code = 129; // Backspace
+            
+            // Hack uses direct ASCII for others
+            if (e.key.length === 1) code = e.key.charCodeAt(0);
+
+            state.RAM[KBD_ADDR] = code;
+            memAccess[KBD_ADDR] = 1.0;
+            memType[KBD_ADDR] = 2;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            state.RAM[KBD_ADDR] = 0;
+            memAccess[KBD_ADDR] = 1.0;
+            memType[KBD_ADDR] = 2;
+        });
+
+        // Init
+        // Load default empty program state
+        reset();
+        requestAnimationFrame(frame);
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,2463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HACK ASM — Nand2Tetris Studio v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg0:#060a10;--bg1:#0a1018;--bg2:#0f1620;--bg3:#142030;--bg4:#1a2840;
+  --border:#1e3050;--border2:#2a4870;
+  --c:#00d4ff;--c2:rgba(0,212,255,.15);--cdim:#007a99;
+  --g:#00ff8c;--g2:rgba(0,255,140,.12);--gdim:#00804a;
+  --a:#ffb300;--a2:rgba(255,179,0,.15);--adim:#8a6000;
+  --p:#c080ff;--r:#ff4060;
+  --t:#b0c8e0;--td:#4a6a8a;--tb:#e0f0ff;
+  --mono:'DM Mono',monospace;--disp:'Exo 2',sans-serif;--code:'Share Tech Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg0);color:var(--t);font-family:var(--disp)}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);pointer-events:none;z-index:9999}
+
+#app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+/* ── TOPBAR ── */
+#topbar{
+  height:auto;flex-shrink:0;
+  background:var(--bg1);border-bottom:1px solid var(--border);
+  display:flex;flex-direction:column;position:relative;overflow:hidden;
+}
+#topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--c) 30%,var(--a) 70%,transparent 100%);opacity:.5}
+#tb-row1{height:48px;display:flex;align-items:center;gap:0}
+.tb-logo{padding:0 18px;font-family:var(--disp);font-weight:800;font-size:16px;
+  letter-spacing:3px;color:var(--c);text-shadow:0 0 20px var(--c);flex-shrink:0}
+.tb-logo em{color:var(--a);font-style:normal}
+.tb-sep{width:1px;height:28px;background:var(--border);flex-shrink:0}
+.tb-controls{display:flex;align-items:center;gap:5px;padding:0 10px;flex-shrink:0}
+.btn{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);
+  background:var(--bg3);color:var(--t);padding:5px 12px;border-radius:3px;
+  cursor:pointer;font-family:var(--code);font-size:11px;letter-spacing:.5px;
+  transition:all .12s;user-select:none;white-space:nowrap;flex-shrink:0}
+.btn:hover{border-color:var(--border2);color:var(--tb);background:var(--bg4)}
+.btn.c{border-color:var(--c);color:var(--c);background:rgba(0,212,255,.06)}
+.btn.c:hover{background:rgba(0,212,255,.14);box-shadow:0 0 14px rgba(0,212,255,.25)}
+.btn.g{border-color:var(--g);color:var(--g);background:rgba(0,255,140,.05)}
+.btn.g:hover{background:rgba(0,255,140,.14)}
+.btn.a{border-color:var(--a);color:var(--a);background:rgba(255,179,0,.05)}
+.btn.a:hover{background:rgba(255,179,0,.14)}
+.btn.r{border-color:var(--r);color:var(--r);background:rgba(255,64,96,.05)}
+.btn:disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
+.btn.active-run{border-color:var(--r);color:var(--r);background:rgba(255,64,96,.1);animation:run-pulse 1.2s infinite}
+.btn.micro-on{border-color:var(--p);color:var(--p);background:rgba(192,128,255,.12);
+  box-shadow:0 0 10px rgba(192,128,255,.2)}
+@keyframes run-pulse{50%{box-shadow:0 0 12px rgba(255,64,96,.4)}}
+.speed-section{display:flex;align-items:center;gap:8px;padding:0 10px;border-left:1px solid var(--border)}
+.speed-label{font-family:var(--code);font-size:10px;color:var(--td);white-space:nowrap;flex-shrink:0}
+.speed-btns{display:flex;gap:3px}
+.spd-btn{border:1px solid var(--border);background:var(--bg2);color:var(--td);
+  padding:3px 7px;border-radius:2px;cursor:pointer;font-family:var(--code);font-size:10px;
+  transition:all .1s;user-select:none}
+.spd-btn:hover{border-color:var(--border2);color:var(--t)}
+.spd-btn.sel{border-color:var(--a);color:var(--a);background:rgba(255,179,0,.1)}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:10px;padding:0 14px;flex-shrink:0}
+.tb-stat{font-family:var(--code);font-size:11px;color:var(--td)}
+.tb-stat span{color:var(--c)}
+.status-pill{display:flex;align-items:center;gap:5px;border:1px solid var(--border);
+  border-radius:20px;padding:3px 10px;font-family:var(--code);font-size:10px;color:var(--td)}
+.s-dot{width:6px;height:6px;border-radius:50%;background:var(--td);flex-shrink:0;transition:all .2s}
+.s-dot.run{background:var(--g);box-shadow:0 0 8px var(--g);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.3}}
+.s-dot.ok{background:var(--g);box-shadow:0 0 6px var(--g)}
+.s-dot.err{background:var(--r);box-shadow:0 0 6px var(--r)}
+.s-dot.micro{background:var(--p);box-shadow:0 0 6px var(--p)}
+
+/* Micro-stage bar (row 2 of topbar) */
+#micro-bar{display:none;height:34px;background:var(--bg0);border-top:1px solid var(--border);
+  padding:0 14px;align-items:center;gap:0;overflow:hidden}
+#micro-bar.visible{display:flex}
+.ms-label{font-family:var(--code);font-size:9px;color:var(--td);letter-spacing:2px;
+  margin-right:10px;white-space:nowrap;flex-shrink:0}
+.ms-chips{display:flex;align-items:center;gap:3px;flex-wrap:nowrap}
+.ms-chip{font-family:var(--code);font-size:9px;padding:3px 8px;border-radius:12px;
+  border:1px solid var(--border);color:var(--td);background:var(--bg2);
+  white-space:nowrap;transition:all .2s;letter-spacing:.5px}
+.ms-chip.done{border-color:var(--gdim);color:var(--gdim)}
+.ms-chip.active{border-color:var(--p);color:var(--p);background:rgba(192,128,255,.12);
+  box-shadow:0 0 8px rgba(192,128,255,.3)}
+.ms-arrow{font-size:8px;color:var(--border2);padding:0 2px}
+#micro-info{margin-left:auto;font-family:var(--code);font-size:10px;color:var(--p);white-space:nowrap}
+
+/* ── MAIN ── */
+#main{display:flex;flex:1;overflow:hidden;min-height:0}
+
+/* ── LEFT ── */
+#left{width:310px;flex-shrink:0;display:flex;flex-direction:column;
+  border-right:1px solid var(--border);background:var(--bg1);overflow:hidden}
+.panel-hdr{padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.ph-title{font-family:var(--disp);font-weight:600;font-size:10px;letter-spacing:2px;
+  color:var(--td);text-transform:uppercase}
+.ph-right{font-family:var(--code);font-size:10px;color:var(--td)}
+.sample-bar{padding:5px 8px;border-bottom:1px solid var(--border);background:var(--bg2);
+  display:flex;gap:6px;align-items:center;flex-shrink:0}
+.sample-bar select{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--t);
+  padding:4px 6px;border-radius:3px;font-family:var(--code);font-size:10px;cursor:pointer;outline:none}
+.sample-bar select:focus{border-color:var(--cdim)}
+.editor-container{flex:1;display:flex;position:relative;overflow:hidden;min-height:0}
+#lnums{width:36px;flex-shrink:0;background:var(--bg0);border-right:1px solid var(--border);
+  padding:10px 0;overflow:hidden;cursor:pointer}
+.ln{display:block;text-align:right;padding-right:6px;font-family:var(--code);font-size:11px;
+  color:var(--td);line-height:19px;user-select:none;transition:color .15s;position:relative}
+.ln:hover{color:var(--tb)}
+.ln.cur{color:var(--a)}
+.ln.bp::before{content:'●';position:absolute;left:2px;color:var(--r);font-size:8px;line-height:19px}
+.ln.bp{color:var(--r)}
+#hl-layer{position:absolute;left:36px;right:0;top:0;bottom:0;
+  padding:10px 10px;font-family:var(--code);font-size:12px;line-height:19px;
+  pointer-events:none;white-space:pre;overflow:hidden;word-break:break-all}
+#active-bg{position:absolute;left:36px;right:0;height:19px;
+  background:rgba(255,179,0,.07);border-left:2px solid var(--a);
+  pointer-events:none;display:none;transition:top .1s}
+#editor{position:absolute;left:36px;right:0;top:0;bottom:0;
+  background:transparent;border:none;outline:none;resize:none;
+  font-family:var(--code);font-size:12px;line-height:19px;
+  color:transparent;caret-color:var(--c);padding:10px 10px;
+  overflow-y:auto;white-space:pre;tab-size:2;z-index:2}
+
+/* M alias ribbon */
+#m-alias{
+  background:var(--bg0);border-top:1px solid var(--border);
+  padding:5px 12px;flex-shrink:0;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.ma-chunk{font-family:var(--code);font-size:10px;color:var(--td)}
+.ma-chunk span{color:var(--c)}.ma-chunk .av{color:var(--a)}.ma-chunk .mv{color:var(--g)}
+.ma-eq{color:var(--border2);margin:0 2px}
+
+#explain-panel{border-top:1px solid var(--border);background:var(--bg0);
+  padding:10px 12px;flex-shrink:0;min-height:90px}
+.exp-tag{font-family:var(--code);font-size:9px;letter-spacing:2px;color:var(--td);
+  margin-bottom:5px;text-transform:uppercase}
+.exp-body{font-size:11px;line-height:1.65;font-family:var(--disp);font-weight:300;color:var(--t)}
+.exp-body .K{color:var(--c);font-family:var(--code)}
+.exp-body .V{color:var(--a);font-family:var(--code);font-weight:500}
+.exp-body .R{color:var(--g);font-family:var(--code)}
+.exp-body .P{color:var(--p);font-family:var(--code)}
+.exp-body b{color:var(--tb);font-weight:600}
+.exp-row{display:grid;grid-template-columns:70px 1fr;gap:4px;margin-bottom:3px;font-size:10px}
+.exp-row .erl{color:var(--td);font-family:var(--code);font-size:9px;letter-spacing:1px;padding-top:1px}
+#log{border-top:1px solid var(--border);max-height:55px;overflow-y:auto;
+  padding:5px 10px;background:var(--bg0);flex-shrink:0}
+.log-e{font-family:var(--code);font-size:10px;line-height:1.7}
+.log-e.ok{color:var(--g)}.log-e.err{color:var(--r)}.log-e.inf{color:var(--cdim)}
+
+/* ── CENTER ── */
+#center{flex:1;display:flex;flex-direction:column;border-right:1px solid var(--border);
+  background:var(--bg0);overflow:hidden;min-width:0}
+.center-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+.ctab{padding:7px 16px;font-family:var(--code);font-size:10px;letter-spacing:1px;
+  color:var(--td);cursor:pointer;border-right:1px solid var(--border);transition:all .15s;
+  user-select:none}
+.ctab:hover{color:var(--t);background:var(--bg3)}
+.ctab.active{color:var(--c);background:var(--bg1);border-bottom:2px solid var(--c);
+  margin-bottom:-1px}
+
+#cpu-pane{flex:1;position:relative;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+#cpu-wrap{flex:1;position:relative;min-height:0;overflow:hidden}
+#cpu-canvas{display:block;width:100%;height:100%}
+#rom-pane{flex:1;display:none;overflow:hidden;flex-direction:column}
+#rom-pane.active{display:flex}
+
+/* ROM viewer */
+#rom-header{display:flex;padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--border);
+  flex-shrink:0;gap:0;font-family:var(--code);font-size:9px;color:var(--td);letter-spacing:1px}
+.rh-col{overflow:hidden}
+#rom-rows{flex:1;overflow-y:auto;font-family:var(--code);font-size:11px}
+.rom-row{display:flex;padding:2px 0;border-bottom:1px solid rgba(30,48,80,.5);
+  cursor:pointer;transition:background .1s;align-items:center}
+.rom-row:hover{background:rgba(0,212,255,.04)}
+.rom-row.pc-row{background:rgba(255,179,0,.08);border-left:2px solid var(--a)}
+.rom-row.bp-row{background:rgba(255,64,96,.05)}
+.rom-row.pc-row.bp-row{background:rgba(255,64,96,.12)}
+.rc-addr{width:42px;flex-shrink:0;text-align:right;padding-right:8px;color:var(--td);font-size:10px}
+.rc-bin{width:145px;flex-shrink:0;letter-spacing:1px;color:var(--border2);font-size:10px;padding-right:8px}
+.rc-bin.a-instr .rb-bit{color:var(--c)}
+.rc-bin.c-instr .rb-bit{color:var(--g)}
+.rc-type{width:52px;flex-shrink:0;font-size:9px;letter-spacing:1px}
+.rc-type.a{color:var(--c)}.rc-type.c{color:var(--g)}
+.rc-decoded{width:80px;flex-shrink:0;color:var(--a);font-size:10px;padding-right:8px}
+.rc-src{flex:1;color:var(--td);font-size:10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.rc-pc{width:16px;flex-shrink:0;color:var(--a);font-size:9px}
+
+/* RAM strip */
+#ram-strip{height:196px;flex-shrink:0;border-top:1px solid var(--border);
+  background:var(--bg1);display:flex;flex-direction:column;overflow:hidden}
+.ram-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+.rtab{padding:4px 12px;font-family:var(--code);font-size:9px;letter-spacing:1px;color:var(--td);
+  cursor:pointer;border-right:1px solid var(--border);user-select:none;transition:all .12s}
+.rtab:hover{color:var(--t)}
+.rtab.active{color:var(--a);border-bottom:2px solid var(--a);margin-bottom:-1px;background:var(--bg1)}
+.rtab-info{margin-left:auto;padding:4px 10px;font-family:var(--code);font-size:9px;color:var(--td)}
+#ram-grid-wrap{flex:1;overflow-y:auto;padding:6px 10px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:4px;align-content:start}
+.ram-cell{background:var(--bg2);border:1px solid var(--border);border-radius:3px;
+  padding:4px 6px;font-family:var(--code);font-size:10px;transition:all .25s;cursor:default}
+.ram-cell .ra{color:var(--td);font-size:9px}
+.ram-cell .rv{color:var(--t);font-size:12px;font-weight:500;margin-top:1px}
+.ram-cell .rb{color:var(--td);font-size:8px;letter-spacing:.5px;margin-top:1px}
+.ram-cell.hi{border-color:var(--c);background:rgba(0,212,255,.12);animation:cell-flash .5s ease}
+.ram-cell.a-ptr{border-color:var(--a);background:rgba(255,179,0,.08)}
+.ram-cell.screen{border-color:var(--gdim);background:rgba(0,128,74,.06)}
+@keyframes cell-flash{0%{box-shadow:0 0 0 rgba(0,212,255,0)}40%{box-shadow:0 0 16px rgba(0,212,255,.6)}100%{box-shadow:0 0 4px rgba(0,212,255,.2)}}
+
+/* ── RIGHT ── */
+#right{width:340px;flex-shrink:0;display:flex;flex-direction:column;
+  background:var(--bg1);overflow:hidden}
+#screen-wrap{padding:8px 8px 6px;flex-shrink:0}
+#screen-canvas{display:block;width:100%;image-rendering:pixelated;
+  border:1px solid var(--border2);border-radius:2px;
+  box-shadow:0 0 30px rgba(0,255,140,.04),inset 0 0 20px rgba(0,0,0,.4)}
+#regs-panel{padding:6px 8px;flex-shrink:0}
+.reg-row{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px}
+.reg-box{background:var(--bg2);border:1px solid var(--border);border-radius:4px;
+  padding:6px 8px;transition:all .2s;position:relative;overflow:hidden}
+.reg-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:opacity .3s}
+.reg-box.A::before{background:var(--c)}.reg-box.D::before{background:var(--g)}
+.reg-box.PC::before{background:var(--p)}.reg-box.M::before{background:var(--a)}
+.reg-box.hi{animation:reg-flash .5s ease}.reg-box.hi::before{opacity:1}
+@keyframes reg-flash{0%{transform:scale(1)}30%{transform:scale(1.02)}100%{transform:scale(1)}}
+.reg-box.A.hi{box-shadow:0 0 14px rgba(0,212,255,.3)}
+.reg-box.D.hi{box-shadow:0 0 14px rgba(0,255,140,.3)}
+.reg-box.PC.hi{box-shadow:0 0 14px rgba(192,128,255,.3)}
+.reg-box.M.hi{box-shadow:0 0 14px rgba(255,179,0,.3)}
+.rb-name{font-family:var(--disp);font-weight:700;font-size:9px;letter-spacing:2px;color:var(--td)}
+.rb-val{font-family:var(--code);font-size:16px;font-weight:400;margin:2px 0 1px}
+.reg-box.A .rb-val{color:var(--c)}.reg-box.D .rb-val{color:var(--g)}
+.reg-box.PC .rb-val{color:var(--p)}.reg-box.M .rb-val{color:var(--a)}
+.rb-bin{font-family:var(--code);font-size:8px;color:var(--td);word-break:break-all}
+#instr-box{margin:0 8px 6px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:4px;padding:6px 8px;flex-shrink:0}
+#instr-decoded{font-family:var(--code);font-size:11px;color:var(--c);line-height:1.8;
+  margin-top:3px}
+
+/* ALU Inspector */
+#alu-toggle{padding:6px 12px;background:var(--bg2);border-top:1px solid var(--border);
+  cursor:pointer;font-family:var(--code);font-size:10px;color:var(--cdim);
+  display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+#alu-toggle:hover{color:var(--c)}
+#alu-panel{max-height:0;overflow:hidden;transition:max-height .35s ease;
+  background:var(--bg0);border-top:0 solid var(--border);flex-shrink:0}
+#alu-panel.open{max-height:220px;border-top-width:1px}
+.alu-inner{padding:8px 10px;overflow-y:auto;max-height:220px}
+.alu-sec{margin-bottom:8px}
+.alu-sec-ttl{font-family:var(--code);font-size:9px;letter-spacing:2px;color:var(--td);
+  text-transform:uppercase;margin-bottom:5px}
+.alu-bits{display:flex;gap:4px;flex-wrap:wrap}
+.alu-bit{background:var(--bg2);border:1px solid var(--border);border-radius:3px;
+  padding:4px 6px;text-align:center;min-width:36px;transition:all .2s}
+.alu-bit.on{border-color:var(--g);background:rgba(0,255,140,.1)}
+.ab-name{font-family:var(--code);font-size:8px;color:var(--td);letter-spacing:1px}
+.ab-val{font-family:var(--code);font-size:14px;font-weight:500;color:var(--t);line-height:1.2}
+.alu-bit.on .ab-val{color:var(--g)}
+.ab-desc{font-size:7px;color:var(--td);margin-top:1px;font-family:var(--disp)}
+#alu-pipeline{font-family:var(--code);font-size:10px;line-height:1.8;color:var(--t)}
+.ap-row{display:flex;gap:6px;flex-wrap:wrap}
+.ap-lbl{color:var(--td);width:52px;flex-shrink:0;font-size:9px;letter-spacing:1px}
+.ap-vals{flex:1;color:var(--t)}
+.ap-vals .hi{color:var(--a);font-weight:500}
+.alu-flags{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.alu-flag{font-family:var(--code);font-size:10px;padding:2px 8px;border-radius:12px;
+  border:1px solid var(--border);color:var(--td)}
+.alu-flag.on{border-color:var(--g);color:var(--g);background:rgba(0,255,140,.08)}
+
+/* Reference */
+#ref-toggle{padding:6px 12px;background:var(--bg2);border-top:1px solid var(--border);
+  cursor:pointer;font-family:var(--code);font-size:10px;color:var(--cdim);
+  display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+#ref-toggle:hover{color:var(--c)}
+#ref-panel{max-height:0;overflow:hidden;transition:max-height .3s ease;
+  background:var(--bg0);border-top:0 solid var(--border);flex-shrink:0}
+#ref-panel.open{max-height:200px;border-top-width:1px}
+.ref-inner{padding:8px 12px;overflow-y:auto;max-height:200px}
+.ref-g{font-family:var(--disp);font-weight:700;font-size:9px;letter-spacing:2px;
+  color:var(--a);margin:6px 0 3px}
+.ref-item{display:flex;gap:8px;margin-bottom:2px;font-size:10px}
+.ri-code{font-family:var(--code);color:var(--c);width:76px;flex-shrink:0}
+.ri-desc{color:var(--td)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg0)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--border2)}
+
+/* Syntax highlight */
+.ha{color:var(--c)}.hd{color:var(--p)}.hc{color:var(--g)}.hj{color:var(--r)}
+.hlbl{color:var(--a);font-weight:700}.hcmt{color:var(--td);font-style:italic}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div id="tb-row1">
+    <div class="tb-logo">HACK<em>·</em>ASM</div>
+    <div class="tb-sep"></div>
+    <div class="tb-controls">
+      <button class="btn c" onclick="doAssemble()" title="Ctrl+Enter">⚙ ASSEMBLE</button>
+      <div class="tb-sep" style="margin:0 2px"></div>
+      <button class="btn" id="btn-micro" onclick="toggleMicroMode()" title="Micro-step mode" disabled>⬡ MICRO</button>
+      <button class="btn" id="btn-step" onclick="doStepOrMicro()" disabled title="F8">→ STEP</button>
+      <button class="btn g" id="btn-run" onclick="doToggleRun()" disabled title="F5">▶ RUN</button>
+      <button class="btn r" id="btn-reset" onclick="doReset()" disabled>↺ RESET</button>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="speed-section">
+      <span class="speed-label">SPEED:</span>
+      <div class="speed-btns" id="speed-btns">
+        <div class="spd-btn" onclick="setSpeed(1)">1/s</div>
+        <div class="spd-btn" onclick="setSpeed(5)">5/s</div>
+        <div class="spd-btn" onclick="setSpeed(20)">20/s</div>
+        <div class="spd-btn" onclick="setSpeed(100)">100/s</div>
+        <div class="spd-btn" onclick="setSpeed(500)">500/s</div>
+        <div class="spd-btn sel" onclick="setSpeed(0)">MAX</div>
+      </div>
+    </div>
+    <div class="tb-right">
+      <span class="tb-stat">CYCLE <span id="cycle-count">0</span></span>
+      <span class="tb-stat">PC <span id="pc-disp">0</span></span>
+      <span class="tb-stat">ROM <span id="rom-size">—</span></span>
+      <div class="status-pill"><div class="s-dot" id="s-dot"></div><span id="s-text">IDLE</span></div>
+    </div>
+  </div>
+  <!-- Micro-step stage bar -->
+  <div id="micro-bar">
+    <span class="ms-label">MICRO:</span>
+    <div class="ms-chips" id="ms-chips"></div>
+    <span id="micro-info"></span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- LEFT: EDITOR -->
+  <div id="left">
+    <div class="panel-hdr">
+      <span class="ph-title">Assembly Editor</span>
+      <span class="ph-right" id="cur-pos">Ln 1</span>
+    </div>
+    <div class="sample-bar">
+      <select id="sample-sel" onchange="loadSample(this.value)">
+        <option value="">— Load Example —</option>
+        <optgroup label="Getting Started">
+          <option value="help">★ How Hack ASM Works</option>
+        </optgroup>
+        <optgroup label="Beginner">
+          <option value="hello">① Hello: Set a Value</option>
+          <option value="add">② Add Two Numbers</option>
+          <option value="sub">③ Subtract Numbers</option>
+          <option value="abs">④ Absolute Value</option>
+        </optgroup>
+        <optgroup label="Intermediate">
+          <option value="loop">⑤ Countdown Loop</option>
+          <option value="sum">⑥ Sum 1 to N</option>
+          <option value="mult">⑦ Multiply Two Numbers</option>
+          <option value="max">⑧ Maximum of Two</option>
+        </optgroup>
+        <optgroup label="Screen">
+          <option value="pixel">⑨ Draw One Pixel</option>
+          <option value="line">⑩ Draw a Line</option>
+          <option value="rect">⑪ Draw a Rectangle</option>
+          <option value="fill">⑫ Fill Screen</option>
+        </optgroup>
+        <optgroup label="Advanced">
+          <option value="fib">⑬ Fibonacci Sequence</option>
+          <option value="div">⑭ Integer Division</option>
+          <option value="neg">⑮ Negate (Two's Complement)</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="editor-container">
+      <div id="active-bg"></div>
+      <div id="lnums"></div>
+      <div id="hl-layer"></div>
+      <textarea id="editor" spellcheck="false" autocomplete="off"></textarea>
+    </div>
+    <!-- M alias ribbon -->
+    <div id="m-alias">
+      <span class="ma-chunk"><span>M</span> <span class="ma-eq">≡</span> RAM[A]</span>
+      <span style="color:var(--border2);font-family:var(--code);font-size:10px">|</span>
+      <span class="ma-chunk">A = <span class="av" id="ma-a">0</span></span>
+      <span style="color:var(--border2);font-family:var(--code);font-size:10px">→</span>
+      <span class="ma-chunk">M = RAM[<span class="av" id="ma-a2">0</span>] = <span class="mv" id="ma-m">0</span></span>
+    </div>
+    <div id="explain-panel">
+      <div class="exp-tag" id="exp-tag">▸ What's Happening</div>
+      <div class="exp-body" id="exp-body">Load an example or write code, then press <span class="K">ASSEMBLE</span> (Ctrl+Enter).<br>Use <span class="K">STEP</span> to run one instruction, or <span class="K">MICRO</span> to step through each CPU stage.</div>
+    </div>
+    <div id="log"></div>
+  </div>
+
+  <!-- CENTER: CPU VIZ + ROM VIEWER + RAM STRIP -->
+  <div id="center">
+    <div class="center-tabs">
+      <div class="ctab active" id="ctab-cpu" onclick="switchCenterTab('cpu')">CPU VIEW</div>
+      <div class="ctab" id="ctab-rom" onclick="switchCenterTab('rom')">ROM VIEWER</div>
+      <div style="flex:1;border-bottom:1px solid transparent"></div>
+      <div style="padding:6px 12px;font-family:var(--code);font-size:9px;color:var(--td)">
+        Click line numbers to set breakpoints
+      </div>
+    </div>
+    <div id="cpu-pane">
+      <div id="cpu-wrap"><canvas id="cpu-canvas"></canvas></div>
+    </div>
+    <div id="rom-pane">
+      <div id="rom-header">
+        <div class="rh-col" style="width:42px;text-align:right;padding-right:8px">ADDR</div>
+        <div class="rh-col" style="width:145px;padding-right:8px">BINARY (16-bit)</div>
+        <div class="rh-col" style="width:52px">TYPE</div>
+        <div class="rh-col" style="width:80px;padding-right:8px">DECODED</div>
+        <div class="rh-col" style="flex:1">SOURCE LINE</div>
+      </div>
+      <div id="rom-rows">
+        <div style="padding:20px;font-family:var(--code);font-size:11px;color:var(--td)">Assemble a program to see the ROM.</div>
+      </div>
+    </div>
+    <div id="ram-strip">
+      <div class="ram-tabs">
+        <div class="rtab active" id="rtab-regs" onclick="switchRamTab('regs')">R0–R15</div>
+        <div class="rtab" id="rtab-awin" onclick="switchRamTab('awin')">A ± 8</div>
+        <div class="rtab" id="rtab-screen" onclick="switchRamTab('screen')">SCREEN MEM</div>
+        <div class="rtab-info">A = <span id="a-ptr-val" style="color:var(--a)">0</span></div>
+      </div>
+      <div id="ram-grid-wrap"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: SCREEN + REGS + ALU INSPECTOR + REF -->
+  <div id="right">
+    <div class="panel-hdr" style="flex-shrink:0">
+      <span class="ph-title">Hack Screen  512×256</span>
+      <button class="btn r" style="padding:2px 8px;font-size:9px" onclick="clearScreen()">CLR</button>
+    </div>
+    <div id="screen-wrap">
+      <canvas id="screen-canvas" width="512" height="256"></canvas>
+    </div>
+    <div id="regs-panel">
+      <div style="font-family:var(--code);font-size:9px;letter-spacing:2px;color:var(--td);margin-bottom:5px">REGISTERS</div>
+      <div class="reg-row">
+        <div class="reg-box A" id="rb-A">
+          <div class="rb-name">A REGISTER</div>
+          <div class="rb-val" id="rv-A">0</div>
+          <div class="rb-bin" id="rbin-A">0000000000000000</div>
+        </div>
+        <div class="reg-box D" id="rb-D">
+          <div class="rb-name">D REGISTER</div>
+          <div class="rb-val" id="rv-D">0</div>
+          <div class="rb-bin" id="rbin-D">0000000000000000</div>
+        </div>
+      </div>
+      <div class="reg-row">
+        <div class="reg-box PC" id="rb-PC">
+          <div class="rb-name">PROG. COUNTER</div>
+          <div class="rb-val" id="rv-PC">0</div>
+          <div class="rb-bin" id="rbin-PC">0000000000000000</div>
+        </div>
+        <div class="reg-box M" id="rb-M">
+          <div class="rb-name">RAM[A]  (M)</div>
+          <div class="rb-val" id="rv-M">0</div>
+          <div class="rb-bin" id="rbin-M">0000000000000000</div>
+        </div>
+      </div>
+    </div>
+    <div id="instr-box">
+      <div style="font-family:var(--code);font-size:9px;letter-spacing:2px;color:var(--td)">CURRENT INSTRUCTION</div>
+      <div id="instr-decoded">—</div>
+    </div>
+
+    <!-- ALU Inspector -->
+    <div id="alu-toggle" onclick="toggleALUInspector()">
+      <span>🔬 ALU INSPECTOR</span><span id="alu-arrow">▸</span>
+    </div>
+    <div id="alu-panel">
+      <div class="alu-inner">
+        <div class="alu-sec">
+          <div class="alu-sec-ttl">Control bits (comp field)</div>
+          <div class="alu-bits">
+            <div class="alu-bit" id="ab-zx"><div class="ab-name">zx</div><div class="ab-val" id="abv-zx">—</div><div class="ab-desc">zero x</div></div>
+            <div class="alu-bit" id="ab-nx"><div class="ab-name">nx</div><div class="ab-val" id="abv-nx">—</div><div class="ab-desc">not x</div></div>
+            <div class="alu-bit" id="ab-zy"><div class="ab-name">zy</div><div class="ab-val" id="abv-zy">—</div><div class="ab-desc">zero y</div></div>
+            <div class="alu-bit" id="ab-ny"><div class="ab-name">ny</div><div class="ab-val" id="abv-ny">—</div><div class="ab-desc">not y</div></div>
+            <div class="alu-bit" id="ab-f"><div class="ab-name">f</div><div class="ab-val" id="abv-f">—</div><div class="ab-desc">ADD/AND</div></div>
+            <div class="alu-bit" id="ab-no"><div class="ab-name">no</div><div class="ab-val" id="abv-no">—</div><div class="ab-desc">not out</div></div>
+          </div>
+        </div>
+        <div class="alu-sec">
+          <div class="alu-sec-ttl">Computation pipeline</div>
+          <div id="alu-pipeline">—</div>
+        </div>
+        <div class="alu-sec">
+          <div class="alu-sec-ttl">Output flags</div>
+          <div class="alu-flags" id="alu-flags-wrap">
+            <div class="alu-flag" id="af-zr">zr=—</div>
+            <div class="alu-flag" id="af-ng">ng=—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="ref-toggle" onclick="toggleRef()">
+      <span>📖 QUICK REFERENCE</span><span id="ref-arrow">▸</span>
+    </div>
+    <div id="ref-panel">
+      <div class="ref-inner">
+        <div class="ref-g">A-INSTRUCTIONS</div>
+        <div class="ref-item"><div class="ri-code">@number</div><div class="ri-desc">Load number into A</div></div>
+        <div class="ref-item"><div class="ri-code">@label</div><div class="ri-desc">Load address of label/variable</div></div>
+        <div class="ref-g">DESTINATIONS</div>
+        <div class="ref-item"><div class="ri-code">D=...  A=...</div><div class="ri-desc">Store into D or A register</div></div>
+        <div class="ref-item"><div class="ri-code">M=...</div><div class="ri-desc">Store into RAM[A]</div></div>
+        <div class="ref-item"><div class="ri-code">AMD=...</div><div class="ri-desc">Store into A, M, and D</div></div>
+        <div class="ref-g">COMPUTATIONS</div>
+        <div class="ref-item"><div class="ri-code">D+A  D+M</div><div class="ri-desc">Add D and A (or RAM[A])</div></div>
+        <div class="ref-item"><div class="ri-code">D-A  D-M</div><div class="ri-desc">Subtract A/M from D</div></div>
+        <div class="ref-item"><div class="ri-code">D&amp;A  D|A</div><div class="ri-desc">Bitwise AND / OR</div></div>
+        <div class="ref-g">JUMP CONDITIONS</div>
+        <div class="ref-item"><div class="ri-code">0;JMP</div><div class="ri-desc">Always jump to ROM[A]</div></div>
+        <div class="ref-item"><div class="ri-code">D;JGT/JLT/JEQ</div><div class="ri-desc">Jump if D &gt; 0 / &lt; 0 / = 0</div></div>
+        <div class="ref-g">SPECIAL ADDRESSES</div>
+        <div class="ref-item"><div class="ri-code">@SCREEN</div><div class="ri-desc">= 16384, screen memory</div></div>
+        <div class="ref-item"><div class="ri-code">@R0–@R15</div><div class="ri-desc">RAM[0]–RAM[15]</div></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #main -->
+</div><!-- #app -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════
+const SCREEN_BASE = 16384, KBD = 24576, RAM_SIZE = 32768;
+let ram = new Int16Array(RAM_SIZE);
+let rom = [], romToSrc = [], srcLines = [];
+let regA = 0, regD = 0, PC = 0, cycles = 0;
+let running = false, assembled = false;
+let runTimer = null, runSpeed = 0;
+let lastChangedCells = new Set();
+let lastChangedRegs = new Set();
+let breakpoints = new Set();  // source line indices
+let prevSourceHash = '';       // track source changes for breakpoint retention
+
+// Micro-step state
+let microMode = false;
+let microStage = -1;  // -1 = not mid-instruction
+let microData = null;
+const MICRO_A = ['FETCH','DECODE','LOAD A','PC+1'];
+const MICRO_C = ['FETCH','DECODE','SEL Y','COMPUTE','WRITE','JUMP/PC'];
+
+// UI state
+let ramTab = 'regs';   // 'regs' | 'awin' | 'screen'
+let centerTab = 'cpu'; // 'cpu'  | 'rom'
+let lastScreenAddr = SCREEN_BASE;
+
+// CPU canvas animation
+let cpuAnimActive = '', cpuAnimT = 0, cpuAnimStart = 0, cpuRafPending = false;
+
+// Predefined symbols
+const SYMS = {SP:0,LCL:1,ARG:2,THIS:3,THAT:4,SCREEN:16384,KBD:24576};
+for(let i=0;i<=15;i++) SYMS[`R${i}`]=i;
+
+// ═══════════════════════════════════════════════════════════════════
+//  ALU CORE
+// ═══════════════════════════════════════════════════════════════════
+function s16(n){ n = n & 0xFFFF; return n >= 0x8000 ? n - 0x10000 : n; }
+function b16(n){ return ((n & 0xFFFF) >>> 0).toString(2).padStart(16,'0'); }
+
+function alu(comp, x, y){
+  switch(comp){
+    case 0b101010:return 0;    case 0b111111:return 1;    case 0b111010:return -1;
+    case 0b001100:return x;    case 0b110000:return y;
+    case 0b001101:return ~x;   case 0b110001:return ~y;
+    case 0b001111:return -x;   case 0b110011:return -y;
+    case 0b011111:return x+1;  case 0b110111:return y+1;
+    case 0b001110:return x-1;  case 0b110010:return y-1;
+    case 0b000010:return x+y;  case 0b010011:return x-y;
+    case 0b000111:return y-x;  case 0b000000:return x&y; case 0b010101:return x|y;
+    default: return 0;
+  }
+}
+
+// Return the six ALU control bits + pipeline intermediates + flags
+function aluInspect(comp, x, y){
+  const zx=(comp>>5)&1, nx=(comp>>4)&1, zy=(comp>>3)&1, ny=(comp>>2)&1, f=(comp>>1)&1, no=comp&1;
+  const x16 = x & 0xFFFF, y16 = y & 0xFFFF;
+  let px = zx ? 0 : x16;
+  px = nx ? (~px & 0xFFFF) : px;
+  let py = zy ? 0 : y16;
+  py = ny ? (~py & 0xFFFF) : py;
+  let out = f ? ((s16(px) + s16(py)) & 0xFFFF) : (px & py);
+  out = no ? (~out & 0xFFFF) : out;
+  const result = s16(out);
+  return { zx, nx, zy, ny, f, no,
+    px: s16(px), py: s16(py),
+    result, zr: result===0, ng: result<0 };
+}
+
+function compStr(c, a){
+  const tA={'0':0b0101010,'1':0b0111111,'-1':0b0111010,D:0b0001100,A:0b0110000,'!D':0b0001101,'!A':0b0110001,'-D':0b0001111,'-A':0b0110011,'D+1':0b0011111,'A+1':0b0110111,'D-1':0b0001110,'A-1':0b0110010,'D+A':0b0000010,'D-A':0b0010011,'A-D':0b0000111,'D&A':0b0000000,'D|A':0b0010101};
+  const tM={M:0b1110000,'!M':0b1110001,'-M':0b1110011,'M+1':0b1110111,'M-1':0b1110010,'D+M':0b1000010,'D-M':0b1010011,'M-D':0b1000111,'D&M':0b1000000,'D|M':0b1010101};
+  const tab = a ? tM : tA;
+  for(const[k,v] of Object.entries(tab)) if(v===c) return k;
+  return '?';
+}
+
+function encDest(d){
+  const m={'':0,M:1,D:2,MD:3,DM:3,A:4,AM:5,MA:5,AD:6,DA:6,AMD:7,ADM:7,DAM:7,DMA:7,MAD:7,MDA:7};
+  return d in m ? m[d] : null;
+}
+function encJump(j){
+  const m={'':0,JGT:1,JEQ:2,JGE:3,JLT:4,JNE:5,JLE:6,JMP:7};
+  return j in m ? m[j] : null;
+}
+function encComp(c){
+  const m={'0':0b0101010,'1':0b0111111,'-1':0b0111010,D:0b0001100,A:0b0110000,'!D':0b0001101,'!A':0b0110001,'-D':0b0001111,'-A':0b0110011,'D+1':0b0011111,'A+1':0b0110111,'1+D':0b0011111,'1+A':0b0110111,'D-1':0b0001110,'A-1':0b0110010,'D+A':0b0000010,'A+D':0b0000010,'D-A':0b0010011,'A-D':0b0000111,'D&A':0b0000000,'D|A':0b0010101,M:0b1110000,'!M':0b1110001,'-M':0b1110011,'M+1':0b1110111,'1+M':0b1110111,'M-1':0b1110010,'D+M':0b1000010,'M+D':0b1000010,'D-M':0b1010011,'M-D':0b1000111,'D&M':0b1000000,'D|M':0b1010101};
+  return c in m ? m[c] : null;
+}
+
+function wouldJump(jmp, r){
+  if(!jmp) return false;
+  const p=r>0,z=r===0,n=r<0;
+  return (jmp===1&&p)||(jmp===2&&z)||(jmp===3&&(p||z))||(jmp===4&&n)||(jmp===5&&!z)||(jmp===6&&(n||z))||(jmp===7);
+}
+
+function doJump(jmp, r){
+  if(!wouldJump(jmp, r)) return false;
+  PC = regA & 0x7FFF; return true;
+}
+
+// Simple hash of source for detecting drastic changes
+function hashSource(src){ let h=0; for(let i=0;i<src.length;i++){h=((h<<5)-h+src.charCodeAt(i))|0;} return h.toString(36); }
+
+// ═══════════════════════════════════════════════════════════════════
+//  ASSEMBLER
+// ═══════════════════════════════════════════════════════════════════
+function doAssemble(){
+  const src = document.getElementById('editor').value;
+  const newHash = hashSource(src);
+
+  // If source changed drastically, clear breakpoints
+  if(prevSourceHash && newHash !== prevSourceHash){
+    breakpoints.clear();
+  }
+  prevSourceHash = newHash;
+
+  srcLines = src.split('\n');
+  rom=[]; romToSrc=[];
+  const sym={...SYMS}; let varN=16;
+  const errs=[];
+  let ri=0;
+  // Pass 1: labels
+  for(let i=0;i<srcLines.length;i++){
+    const l=srcLines[i].replace(/\/\/.*/,'').trim();
+    if(!l) continue;
+    if(l[0]==='('&&l.slice(-1)===')') sym[l.slice(1,-1)]=ri;
+    else ri++;
+  }
+  // Pass 2: code
+  for(let i=0;i<srcLines.length;i++){
+    const l=srcLines[i].replace(/\/\/.*/,'').trim();
+    if(!l||(l[0]==='('&&l.slice(-1)===')')) continue;
+    if(l[0]==='@'){
+      const v=l.slice(1); let n;
+      if(/^\d+$/.test(v)){n=parseInt(v);}
+      else{if(!(v in sym)){sym[v]=varN++;}; n=sym[v];}
+      if(n<0||n>32767){errs.push(`Line ${i+1}: value out of range`);continue;}
+      rom.push(n&0x7FFF); romToSrc.push(i);
+    } else {
+      const b=parseCInstr(l,i,errs);
+      if(b!==null){rom.push(b); romToSrc.push(i);}
+    }
+  }
+  clearLog();
+  if(errs.length){errs.forEach(e=>addLog(e,'err'));setStatus('err','ERRORS');return;}
+  addLog(`✓ Assembled — ${rom.length} instructions.`,'ok');
+  assembled=true;
+  microStage=-1; microData=null;
+  doReset(true);
+  document.getElementById('btn-step').disabled=false;
+  document.getElementById('btn-run').disabled=false;
+  document.getElementById('btn-reset').disabled=false;
+  document.getElementById('btn-micro').disabled=false;
+  document.getElementById('rom-size').textContent=rom.length;
+  setStatus('ok','READY');
+  // Switch to CPU view on assemble
+  switchCenterTab('cpu');
+  buildRomViewer();
+  buildRamTabContent();
+  updateAllRegs();
+  updateALUInspector();
+}
+
+function parseCInstr(line,lineN,errs){
+  let rest=line, dest='', comp='', jump='';
+  if(rest.includes('=')){ const p=rest.split('='); dest=p[0].trim(); rest=p[1].trim(); }
+  if(rest.includes(';')){ const p=rest.split(';'); comp=p[0].trim(); jump=p[1].trim(); }
+  else comp=rest.trim();
+  const db=encDest(dest), cb=encComp(comp), jb=encJump(jump);
+  if(db===null){errs.push(`Line ${lineN+1}: bad dest '${dest}'`);return null;}
+  if(cb===null){errs.push(`Line ${lineN+1}: unknown comp '${comp}'`);return null;}
+  if(jb===null){errs.push(`Line ${lineN+1}: bad jump '${jump}'`);return null;}
+  return (0b111<<13)|(cb<<6)|(db<<3)|jb;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  NORMAL STEP
+// ═══════════════════════════════════════════════════════════════════
+function isProgramDone(){ return !assembled || PC >= rom.length; }
+
+function doStep(){
+  if(isProgramDone()) return;
+  lastChangedRegs.clear();
+  lastChangedCells.clear();
+  const instr=rom[PC];
+  const prevPC=PC;
+
+  if((instr&0x8000)===0){
+    // A-instruction
+    const val=instr&0x7FFF;
+    regA=val; lastChangedRegs.add('A');
+    PC++;
+    explainA(val, srcLines[romToSrc[prevPC]]?.replace(/\/\/.*/,'').trim()||'', prevPC);
+    triggerCPUAnim('A', val);
+  } else {
+    // C-instruction — capture A address BEFORE any dest writes
+    const aBefore = regA & 0x7FFF;
+    const a=(instr>>12)&1, comp=(instr>>6)&0x3F;
+    const dest=(instr>>3)&0x7, jump=instr&0x7;
+    const mVal=s16(ram[aBefore]);
+    const x=s16(regD), y=a?mVal:s16(regA);
+    const result=s16(alu(comp,x,y));
+    const destNames=[];
+    if(dest&4){regA=result&0xFFFF; lastChangedRegs.add('A'); destNames.push('A');}
+    if(dest&2){regD=result&0xFFFF; lastChangedRegs.add('D'); destNames.push('D');}
+    if(dest&1){
+      ram[aBefore]=result&0xFFFF;
+      lastChangedCells.add(aBefore);
+      if(aBefore>=SCREEN_BASE) lastScreenAddr=aBefore;
+      updateScreenAt(aBefore);
+      destNames.push(`RAM[${aBefore}]`);
+      lastChangedRegs.add('M');
+    }
+    const jumped=doJump(jump,result);
+    if(!jumped) PC++;
+    const srcTxt=srcLines[romToSrc[prevPC]]?.replace(/\/\/.*/,'').trim()||'';
+    explainC(comp,a,dest,jump,result,destNames,jumped,srcTxt,x,y,aBefore);
+    const animTgt=dest&1?'M':dest&2?'D':dest&4?'A':'ALU';
+    triggerCPUAnim(animTgt, result);
+  }
+
+  cycles++;
+  document.getElementById('cycle-count').textContent=cycles;
+  document.getElementById('pc-disp').textContent=PC;
+  highlightSrcLine(romToSrc[prevPC]);
+  updateAllRegs();
+  updateRamCells();
+  updateALUInspector();
+  updateMAlias();
+  updateRomViewer();
+  drawCPU();
+
+  if(isProgramDone()){
+    doSetRunning(false);
+    setStatus('ok',`DONE · ${cycles} cycles`);
+    addLog(`Program ended after ${cycles} cycles.`,'ok');
+    disableStepRun();
+  }
+
+  // Check breakpoints
+  if(running && assembled && PC<rom.length && breakpoints.has(romToSrc[PC])){
+    doSetRunning(false);
+    setStatus('micro','BREAKPOINT');
+    addLog(`Breakpoint hit at line ${romToSrc[PC]+1}`, 'inf');
+  }
+}
+
+// Silent step for max-speed run (no UI)
+function doStepSilent(){
+  if(isProgramDone()) return;
+  const instr=rom[PC];
+  if((instr&0x8000)===0){
+    regA=instr&0x7FFF; PC++;
+  } else {
+    const aBefore = regA & 0x7FFF;
+    const a=(instr>>12)&1, comp=(instr>>6)&0x3F;
+    const dest=(instr>>3)&0x7, jump=instr&0x7;
+    const mval=s16(ram[aBefore]);
+    const result=s16(alu(comp,s16(regD),a?mval:s16(regA)));
+    if(dest&4) regA=result&0xFFFF;
+    if(dest&2) regD=result&0xFFFF;
+    if(dest&1){
+      ram[aBefore]=result&0xFFFF;
+      if(aBefore>=SCREEN_BASE) lastScreenAddr=aBefore;
+      updateScreenAt(aBefore);
+    }
+    if(!doJump(jump,result)) PC++;
+  }
+  cycles++;
+}
+
+// Disable STEP and RUN when program ends
+function disableStepRun(){
+  document.getElementById('btn-step').disabled=true;
+  document.getElementById('btn-run').disabled=true;
+  // RESET remains enabled
+}
+
+// Re-enable STEP and RUN (used after reset)
+function enableStepRun(){
+  document.getElementById('btn-step').disabled=false;
+  document.getElementById('btn-run').disabled=false;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MICRO-STEP SYSTEM
+// ═══════════════════════════════════════════════════════════════════
+function doStepOrMicro(){
+  if(microMode) doMicroStep();
+  else doStep();
+}
+
+function toggleMicroMode(){
+  if(!assembled) return;
+  // If mid-instruction, complete it first
+  if(microMode && microStage !== -1){
+    completeMicroInstruction();
+  }
+  microMode = !microMode;
+  const btn = document.getElementById('btn-micro');
+  if(microMode){
+    btn.classList.add('micro-on');
+    btn.textContent = '⬡ MICRO ON';
+    document.getElementById('micro-bar').classList.add('visible');
+    setStatus('micro','MICRO MODE');
+  } else {
+    btn.classList.remove('micro-on');
+    btn.textContent = '⬡ MICRO';
+    document.getElementById('micro-bar').classList.remove('visible');
+    if(assembled) setStatus('ok', isProgramDone()?'DONE':'READY');
+  }
+  updateMicroBar();
+}
+
+function completeMicroInstruction(){
+  // Finish the current instruction by running remaining stages
+  if(!microData) return;
+  const numStages = microData.isA ? 4 : 6;
+  for(let s = microStage + 1; s < numStages; s++){
+    applyMicroStage(s, microData);
+  }
+  microStage = -1;
+  microData = null;
+}
+
+function prepareMicroData(pc){
+  const instr = rom[pc];
+  const isA = (instr & 0x8000) === 0;
+  if(isA){
+    return { isA:true, instr, val:instr&0x7FFF, prevPC:pc, nextPC:pc+1, srcLine:romToSrc[pc] };
+  } else {
+    const aBefore = regA & 0x7FFF;
+    const a=(instr>>12)&1, comp=(instr>>6)&0x3F, dest=(instr>>3)&0x7, jump=instr&0x7;
+    const mVal=s16(ram[aBefore]);
+    const x=s16(regD), y=a?mVal:s16(regA);
+    const result=s16(alu(comp,x,y));
+    const jumped=wouldJump(jump,result);
+    const newA = (dest&4) ? (result&0x7FFF) : aBefore;
+    const jumpTarget = jumped ? newA : pc+1;
+    return { isA:false, instr, aBefore, a, comp, dest, jump, mVal, x, y, result,
+      jumped, jumpTarget, nextPC:pc+1, prevPC:pc, srcLine:romToSrc[pc],
+      ai: aluInspect(comp,x,y) };
+  }
+}
+
+function applyMicroStage(stage, md){
+  if(md.isA){
+    switch(stage){
+      case 0: // FETCH - display only
+        setExplainMicro(1,4,'FETCH',
+          `Reading <span class="K">ROM[${md.prevPC}]</span> = <span class="V">${b16(md.instr)}</span><br>
+           This 16-bit word is loaded into the instruction register.`);
+        break;
+      case 1: // DECODE
+        setExplainMicro(2,4,'DECODE',
+          `Bit 15 = <span class="V">0</span> → this is an <b>A-instruction</b>.<br>
+           Bits 14:0 = <span class="V">${md.val}</span>  (the value to load into A).`);
+        break;
+      case 2: // LOAD A
+        regA = md.val; lastChangedRegs.add('A');
+        setExplainMicro(3,4,'LOAD A',
+          `<span class="R">A</span> ← <span class="V">${md.val}</span><br>
+           The A register now holds this value. Any subsequent <span class="K">M</span> reference will be <span class="K">RAM[${md.val}]</span>.`);
+        break;
+      case 3: // PC++
+        PC = md.nextPC; lastChangedRegs.add('PC'); cycles++;
+        document.getElementById('cycle-count').textContent = cycles;
+        document.getElementById('pc-disp').textContent = PC;
+        setExplainMicro(4,4,'PC+1',
+          `<span class="P">PC</span> ← <span class="V">${PC}</span>  (simply advances to next instruction)<br>
+           Instruction complete. 1 cycle used.`);
+        highlightSrcLine(md.srcLine);
+        break;
+    }
+  } else {
+    const jnames=['','JGT','JEQ','JGE','JLT','JNE','JLE','JMP'];
+    const dnames=[];
+    if(md.dest&4) dnames.push('A'); if(md.dest&2) dnames.push('D'); if(md.dest&1) dnames.push('M');
+    switch(stage){
+      case 0: // FETCH
+        setExplainMicro(1,6,'FETCH',
+          `Reading <span class="K">ROM[${md.prevPC}]</span> = <span class="V">${b16(md.instr)}</span><br>
+           Bit 15 = 1 → C-instruction.`);
+        break;
+      case 1: // DECODE
+        setExplainMicro(2,6,'DECODE',
+          `Fields decoded from the 16-bit word:<br>
+           <b>comp</b> = <span class="K">${compStr(md.comp,md.a)}</span>  
+           <b>dest</b> = <span class="R">${dnames.join('')||'—'}</span>  
+           <b>jump</b> = <span class="hj">${jnames[md.jump]||'none'}</span><br>
+           a-bit = <span class="V">${md.a}</span> → y-input uses <b>${md.a?'M = RAM[A]':'A register'}</b>`);
+        break;
+      case 2: // SELECT Y
+        setExplainMicro(3,6,'SEL Y',
+          `ALU needs two inputs, x and y.<br>
+           <b>x</b> = D register = <span class="V">${md.x}</span><br>
+           <b>y</b> = ${md.a?`M (because a-bit=1) = RAM[${md.aBefore}] = <span class="V">${md.mVal}</span>`:`A (because a-bit=0) = <span class="V">${s16(regA)}</span>`}`);
+        break;
+      case 3: { // COMPUTE
+        const ai=md.ai;
+        setExplainMicro(4,6,'COMPUTE',
+          `ALU control bits: zx=${ai.zx} nx=${ai.nx} zy=${ai.zy} ny=${ai.ny} f=${ai.f} no=${ai.no}<br>
+           <b>${compStr(md.comp,md.a)}</b>(x=${md.x}, y=${md.y}) → <span class="V">${md.result}</span><br>
+           Flags: zr=${ai.zr?'<b style="color:var(--g)">1 (zero)</b>':'0'}&nbsp;&nbsp;ng=${ai.ng?'<b style="color:var(--r)">1 (negative)</b>':'0'}`);
+        break;
+      }
+      case 4: { // WRITE DEST
+        lastChangedRegs.clear(); lastChangedCells.clear();
+        if(md.dest&4){regA=md.result&0xFFFF; lastChangedRegs.add('A');}
+        if(md.dest&2){regD=md.result&0xFFFF; lastChangedRegs.add('D');}
+        if(md.dest&1){
+          ram[md.aBefore]=md.result&0xFFFF; lastChangedCells.add(md.aBefore);
+          if(md.aBefore>=SCREEN_BASE) lastScreenAddr=md.aBefore;
+          updateScreenAt(md.aBefore); lastChangedRegs.add('M');
+        }
+        const wnames=[];
+        if(md.dest&4) wnames.push('A');
+        if(md.dest&2) wnames.push('D');
+        if(md.dest&1) wnames.push(`RAM[${md.aBefore}]`);
+        setExplainMicro(5,6,'WRITE',
+          `Result <span class="V">${md.result}</span> written to: <span class="R">${wnames.join(', ')||'nothing (no destination)'}</span>${md.dest&1?`<br><small>Note: M writes use the A address captured at instruction start (${md.aBefore}), not the current A.</small>`:''}`);
+        break;
+      }
+      case 5: { // JUMP / PC
+        const jumped = doJump(md.jump, md.result);
+        if(!jumped) PC = md.nextPC;
+        lastChangedRegs.add('PC'); cycles++;
+        document.getElementById('cycle-count').textContent = cycles;
+        document.getElementById('pc-disp').textContent = PC;
+        let jhtml;
+        if(!md.jump) jhtml=`No jump condition → <span class="P">PC</span> ← <span class="V">${PC}</span> (PC+1)`;
+        else if(jumped) jhtml=`<b style="color:var(--g)">✓ Jump taken!</b>  Condition <span class="K">${jnames[md.jump]}</span> satisfied (result=${md.result}) → <span class="P">PC</span> ← <span class="V">${PC}</span>`;
+        else jhtml=`<b style="color:var(--td)">✗ Not taken.</b>  <span class="K">${jnames[md.jump]}</span> not satisfied (result=${md.result}) → <span class="P">PC</span> ← <span class="V">${PC}</span>`;
+        setExplainMicro(6,6,'JUMP/PC', jhtml);
+        highlightSrcLine(md.srcLine);
+        break;
+      }
+    }
+  }
+}
+
+function setExplainMicro(n, total, stageName, html){
+  document.getElementById('exp-tag').textContent = `▸ Micro-Stage ${n}/${total} — ${stageName}`;
+  document.getElementById('exp-body').innerHTML = html;
+}
+
+function doMicroStep(){
+  if(isProgramDone()) return;
+
+  if(microStage === -1){
+    // Start new instruction
+    lastChangedRegs.clear(); lastChangedCells.clear();
+    microData = prepareMicroData(PC);
+    microStage = 0;
+  } else {
+    microStage++;
+  }
+
+  const numStages = microData.isA ? 4 : 6;
+  applyMicroStage(microStage, microData);
+
+  drawCPU();
+  updateAllRegs();
+  updateRamCells();
+  updateALUInspector();
+  updateMAlias();
+  updateRomViewer();
+  updateMicroBar();
+
+  const done = (microStage >= numStages - 1);
+  if(done){
+    microStage = -1; microData = null;
+    if(isProgramDone()){
+      setStatus('ok',`DONE · ${cycles} cycles`);
+      addLog(`Program ended after ${cycles} cycles.`,'ok');
+      disableStepRun();
+    } else if(microMode){
+      setStatus('micro','MICRO — READY');
+    }
+    updateMicroBar();
+  }
+}
+
+function updateMicroBar(){
+  const bar = document.getElementById('micro-bar');
+  const info = document.getElementById('micro-info');
+  if(!microMode){ bar.classList.remove('visible'); return; }
+  bar.classList.add('visible');
+
+  let stages, current;
+  if(microStage === -1){
+    // Preview next instruction
+    const isA = assembled && PC < rom.length && (rom[PC]&0x8000)===0;
+    stages = isA ? MICRO_A : MICRO_C;
+    current = -1;
+    info.textContent = PC < rom.length ? `Ready → PC=${PC}` : 'DONE';
+  } else {
+    stages = microData.isA ? MICRO_A : MICRO_C;
+    current = microStage;
+    info.textContent = `Stage ${current+1}/${stages.length}`;
+  }
+
+  const chips = document.getElementById('ms-chips');
+  chips.innerHTML = stages.map((s,i) => {
+    let cls = 'ms-chip';
+    if(i < current) cls += ' done';
+    else if(i === current) cls += ' active';
+    return `<div class="${cls}">${s}</div>` + (i<stages.length-1?'<div class="ms-arrow">›</div>':'');
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RUN / RESET / SPEED
+// ═══════════════════════════════════════════════════════════════════
+function doToggleRun(){
+  if(running) doSetRunning(false);
+  else { doSetRunning(true); scheduleNext(); }
+}
+
+function scheduleNext(){
+  if(!running) return;
+  // Check breakpoint BEFORE running
+  if(assembled && PC<rom.length && breakpoints.has(romToSrc[PC])){
+    doSetRunning(false); setStatus('micro','BREAKPOINT');
+    addLog(`Breakpoint at line ${romToSrc[PC]+1}`,'inf'); return;
+  }
+  if(runSpeed===0){
+    const target=4000;
+    let i=0;
+    while(i<target && running && PC<rom.length){ doStepSilent(); i++; }
+    updateAllRegs(); updateRamCells(); drawCPU(); updateScreenFull();
+    document.getElementById('cycle-count').textContent=cycles;
+    document.getElementById('pc-disp').textContent=PC;
+    updateMAlias(); updateALUInspector(); updateRomViewer();
+    // Check breakpoint after batch
+    if(running && assembled && PC<rom.length && breakpoints.has(romToSrc[PC])){
+      doSetRunning(false); setStatus('micro','BREAKPOINT');
+      addLog(`Breakpoint at line ${romToSrc[PC]+1}`,'inf'); return;
+    }
+    if(running && PC<rom.length) requestAnimationFrame(scheduleNext);
+    else if(PC>=rom.length){
+      doSetRunning(false);
+      setStatus('ok',`DONE · ${cycles} cycles`);
+      addLog(`Program ended after ${cycles} cycles.`,'ok');
+      disableStepRun();
+    }
+  } else {
+    const ms=1000/runSpeed;
+    runTimer=setTimeout(()=>{
+      if(running && PC<rom.length){ doStep(); scheduleNext(); }
+      else if(PC>=rom.length){
+        doSetRunning(false);
+        disableStepRun();
+      }
+    },ms);
+  }
+}
+
+function doSetRunning(r){
+  running=r; clearTimeout(runTimer);
+  const btn=document.getElementById('btn-run');
+  const dot=document.getElementById('s-dot');
+  if(r){
+    btn.textContent='⏸ PAUSE'; btn.className='btn active-run';
+    dot.className='s-dot run'; document.getElementById('s-text').textContent='RUNNING';
+  } else {
+    btn.textContent='▶ RUN'; btn.className='btn g';
+    if(microMode){ dot.className='s-dot micro'; document.getElementById('s-text').textContent='MICRO'; }
+    else{ dot.className=assembled?'s-dot ok':'s-dot'; if(assembled) document.getElementById('s-text').textContent='PAUSED'; }
+  }
+}
+
+function doReset(keepAsm){
+  doSetRunning(false);
+  regA=0;regD=0;PC=0;cycles=0;
+  ram.fill(0); lastChangedCells.clear(); lastChangedRegs.clear();
+  microStage=-1; microData=null; lastScreenAddr=SCREEN_BASE;
+  document.getElementById('cycle-count').textContent=0;
+  document.getElementById('pc-disp').textContent=0;
+  document.getElementById('active-bg').style.display='none';
+  document.getElementById('instr-decoded').textContent='—';
+  document.getElementById('exp-tag').textContent='▸ What\'s Happening';
+  document.getElementById('exp-body').innerHTML='Program reset. Press <span class="K">STEP</span> to execute one instruction at a time, or enable <span class="K">MICRO</span> for stage-by-stage execution.';
+  clearScreenCanvas(); buildRamTabContent(); updateAllRegs(); updateMAlias(); updateALUInspector(); updateMicroBar(); drawCPU();
+  if(assembled) updateRomViewer();
+  if(!keepAsm){
+    assembled=false; microMode=false;
+    document.getElementById('btn-step').disabled=true;
+    document.getElementById('btn-run').disabled=true;
+    document.getElementById('btn-reset').disabled=true;
+    document.getElementById('btn-micro').disabled=true;
+    document.getElementById('btn-micro').classList.remove('micro-on');
+    document.getElementById('btn-micro').textContent='⬡ MICRO';
+    document.getElementById('micro-bar').classList.remove('visible');
+    setStatus('','IDLE');
+  } else {
+    // Re-enable STEP and RUN after reset with assembled code
+    enableStepRun();
+  }
+}
+
+function setSpeed(s){
+  runSpeed=s;
+  document.querySelectorAll('.spd-btn').forEach((b,i)=>{
+    const speeds=[1,5,20,100,500,0];
+    b.classList.toggle('sel',speeds[i]===s);
+  });
+}
+
+function setStatus(type,txt){
+  const dot=document.getElementById('s-dot');
+  dot.className='s-dot'+(type?' '+type:'');
+  document.getElementById('s-text').textContent=txt;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  DISPLAY UPDATES
+// ═══════════════════════════════════════════════════════════════════
+function updateAllRegs(){
+  const vals={A:regA,D:regD,PC:PC,M:ram[regA&0x7FFF]};
+  for(const[k,v] of Object.entries(vals)){
+    document.getElementById(`rv-${k}`).textContent=s16(v).toString();
+    document.getElementById(`rbin-${k}`).textContent=b16(v);
+    const box=document.getElementById(`rb-${k}`);
+    if(lastChangedRegs.has(k)){
+      box.classList.remove('hi'); void box.offsetWidth; box.classList.add('hi');
+      setTimeout(()=>box.classList.remove('hi'),700);
+    }
+  }
+  // Decode current instruction
+  if(assembled && PC<rom.length){
+    const instr=rom[PC];
+    if((instr&0x8000)===0){
+      document.getElementById('instr-decoded').innerHTML=
+        `<span style="color:var(--c)">A-instr</span>  →  A ← <span style="color:var(--a)">${instr&0x7FFF}</span>`;
+    } else {
+      const a=(instr>>12)&1, comp=(instr>>6)&0x3F, dest=(instr>>3)&0x7, jump=instr&0x7;
+      const jn=['','JGT','JEQ','JGE','JLT','JNE','JLE','JMP'];
+      const dn=[]; if(dest&4)dn.push('A');if(dest&2)dn.push('D');if(dest&1)dn.push('M');
+      document.getElementById('instr-decoded').innerHTML=
+        `<span style="color:var(--g)">C-instr</span>&nbsp; dest:<span style="color:var(--p)">${dn.join('')||'—'}</span>&nbsp;` +
+        `comp:<span style="color:var(--g)">${compStr(comp,a)}</span>` +
+        (jump?`&nbsp;jump:<span style="color:var(--r)">${jn[jump]}</span>`:'');
+    }
+  } else if(assembled){
+    document.getElementById('instr-decoded').textContent='— (end of program)';
+  }
+  document.getElementById('a-ptr-val').textContent=s16(regA);
+}
+
+function updateMAlias(){
+  const a=s16(regA), addr=regA&0x7FFF, mv=s16(ram[addr]);
+  document.getElementById('ma-a').textContent=a;
+  document.getElementById('ma-a2').textContent=addr;
+  document.getElementById('ma-m').textContent=mv;
+}
+
+function updateALUInspector(){
+  // Only interesting for C-instructions
+  let comp=null, a=null, x=null, y=null, ai=null, aBefore=null;
+
+  if(microData && !microData.isA){
+    // Use cached micro data (always fresh)
+    ({comp,a,x,y,ai,aBefore} = microData);
+    ai = microData.ai;
+  } else if(assembled && PC<rom.length){
+    const instr=rom[PC];
+    if((instr&0x8000)!==0){
+      aBefore = regA&0x7FFF;
+      a=(instr>>12)&1; comp=(instr>>6)&0x3F;
+      x=s16(regD); y=a?s16(ram[aBefore]):s16(regA);
+      ai=aluInspect(comp,x,y);
+    }
+  }
+
+  if(!ai){
+    ['zx','nx','zy','ny','f','no'].forEach(b=>{
+      document.getElementById(`ab-${b}`).classList.remove('on');
+      document.getElementById(`abv-${b}`).textContent='—';
+    });
+    document.getElementById('alu-pipeline').textContent='— (A-instruction or no program at PC)';
+    document.getElementById('af-zr').textContent='zr=—'; document.getElementById('af-zr').classList.remove('on');
+    document.getElementById('af-ng').textContent='ng=—'; document.getElementById('af-ng').classList.remove('on');
+    return;
+  }
+
+  const bits=[ai.zx,ai.nx,ai.zy,ai.ny,ai.f,ai.no];
+  ['zx','nx','zy','ny','f','no'].forEach((b,i)=>{
+    const el=document.getElementById(`ab-${b}`);
+    document.getElementById(`abv-${b}`).textContent=bits[i];
+    el.classList.toggle('on', bits[i]===1);
+  });
+
+  // Pipeline
+  const px_raw = ai.zx ? 0 : (x&0xFFFF);
+  const px = ai.nx ? (~px_raw&0xFFFF) : px_raw;
+  const py_raw = ai.zy ? 0 : (y&0xFFFF);
+  const py = ai.ny ? (~py_raw&0xFFFF) : py_raw;
+  const fop = ai.f ? 'ADD':'AND';
+  let fout = ai.f ? ((s16(px)+s16(py))&0xFFFF) : (px&py);
+  const out = ai.no ? (~fout&0xFFFF) : fout;
+
+  const yn = a===1 ? 'M':'A';
+  let pipeHtml =
+    `<div class="ap-row"><span class="ap-lbl">x (D):</span><span class="ap-vals">${x}${ai.zx?' → <span class="hi">zero→0</span>':''}${ai.nx?` → NOT→<span class="hi">${s16(px)}</span>`:''} = <b>${s16(px)}</b></span></div>` +
+    `<div class="ap-row"><span class="ap-lbl">y (${yn}):</span><span class="ap-vals">${y}${ai.zy?' → <span class="hi">zero→0</span>':''}${ai.ny?` → NOT→<span class="hi">${s16(py)}</span>`:''} = <b>${s16(py)}</b></span></div>` +
+    `<div class="ap-row"><span class="ap-lbl">${fop}:</span><span class="ap-vals">${s16(px)} ${ai.f?'+':'&'} ${s16(py)} = <b>${s16(fout)}</b>${ai.no?` → NOT→<span class="hi">${ai.result}</span>`:''} = <b>${ai.result}</b></span></div>`;
+  document.getElementById('alu-pipeline').innerHTML=pipeHtml;
+
+  const zrEl=document.getElementById('af-zr'), ngEl=document.getElementById('af-ng');
+  zrEl.textContent=`zr=${ai.zr?1:0} (${ai.zr?'zero':'non-zero'})`; zrEl.classList.toggle('on',ai.zr);
+  ngEl.textContent=`ng=${ai.ng?1:0} (${ai.ng?'negative':'positive'})`; ngEl.classList.toggle('on',ai.ng);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RAM TABS
+// ═══════════════════════════════════════════════════════════════════
+function switchRamTab(tab){
+  ramTab=tab;
+  ['regs','awin','screen'].forEach(t=>{
+    document.getElementById(`rtab-${t}`).classList.toggle('active',t===tab);
+  });
+  buildRamTabContent();
+}
+
+function buildRamTabContent(){
+  const g=document.getElementById('ram-grid-wrap');
+  const aAddr=regA&0x7FFF;
+  let cells=[];
+
+  if(ramTab==='regs'){
+    const labels={0:'SP/R0',1:'LCL/R1',2:'ARG/R2',3:'THIS/R3',4:'THAT/R4'};
+    for(let i=0;i<16;i++){
+      const lbl=labels[i]||(i<=15?`R${i}`:'');
+      cells.push({addr:i, label:lbl});
+    }
+  } else if(ramTab==='awin'){
+    const lo=Math.max(0,aAddr-8), hi=Math.min(RAM_SIZE-1,aAddr+8);
+    for(let i=lo;i<=hi;i++) cells.push({addr:i, label:''});
+  } else {
+    // Screen: show 32 cells around lastScreenAddr
+    const lo=Math.max(SCREEN_BASE, lastScreenAddr-8), hi=Math.min(SCREEN_BASE+8191, lo+31);
+    for(let i=lo;i<=hi;i++){
+      const off=i-SCREEN_BASE;
+      const row=Math.floor(off/32), col=(off%32)*16;
+      cells.push({addr:i, label:`R${row} C${col}`});
+    }
+  }
+
+  let h='';
+  cells.forEach(({addr,label})=>{
+    const v=s16(ram[addr]);
+    const isAPtr=addr===aAddr;
+    const isScr=addr>=SCREEN_BASE && addr<SCREEN_BASE+8192;
+    let cls='ram-cell';
+    if(isAPtr) cls+=' a-ptr';
+    else if(isScr) cls+=' screen';
+    h+=`<div class="${cls}" id="rc-${addr}">
+      <div class="ra">RAM[${addr}]${label?` <span style="color:var(--cdim)">${label}</span>`:''}${isAPtr?' <span style="color:var(--a)">←A</span>':''}</div>
+      <div class="rv" id="rcv-${addr}">${v}</div>
+      <div class="rb" id="rcb-${addr}">${b16(ram[addr]).slice(0,8)}…</div>
+    </div>`;
+  });
+  g.innerHTML=h;
+}
+
+function updateRamCells(){
+  const aAddr=regA&0x7FFF;
+  for(const addr of lastChangedCells){
+    const el=document.getElementById(`rc-${addr}`);
+    if(el){
+      const vcell=document.getElementById(`rcv-${addr}`);
+      const bcell=document.getElementById(`rcb-${addr}`);
+      if(vcell) vcell.textContent=s16(ram[addr]);
+      if(bcell) bcell.textContent=b16(ram[addr]).slice(0,8)+'…';
+      el.classList.remove('hi'); void el.offsetWidth; el.classList.add('hi');
+      setTimeout(()=>el.classList.remove('hi'),800);
+    }
+  }
+  // Update A-pointer highlight
+  document.querySelectorAll('.ram-cell.a-ptr').forEach(e=>{
+    if(!e.id) return;
+    const addr=parseInt(e.id.replace('rc-',''));
+    if(addr!==aAddr) e.classList.remove('a-ptr');
+  });
+  const aEl=document.getElementById(`rc-${aAddr}`);
+  if(aEl) aEl.classList.add('a-ptr');
+
+  // If A-window tab, rebuild when A changes
+  if(ramTab==='awin' && lastChangedRegs.has('A')) buildRamTabContent();
+  if(ramTab==='screen' && lastChangedCells.size > 0) buildRamTabContent();
+
+  document.getElementById('a-ptr-val').textContent=s16(regA);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  ROM VIEWER
+// ═══════════════════════════════════════════════════════════════════
+function switchCenterTab(tab){
+  centerTab=tab;
+  document.getElementById('ctab-cpu').classList.toggle('active',tab==='cpu');
+  document.getElementById('ctab-rom').classList.toggle('active',tab==='rom');
+  document.getElementById('cpu-pane').style.display=tab==='cpu'?'flex':'none';
+  document.getElementById('rom-pane').classList.toggle('active',tab==='rom');
+  if(tab==='cpu') resizeCPU();
+  if(tab==='rom' && assembled) updateRomViewer();
+}
+
+function buildRomViewer(){
+  if(!assembled){ document.getElementById('rom-rows').innerHTML=
+    '<div style="padding:20px;font-family:var(--code);font-size:11px;color:var(--td)">Assemble a program to see the ROM.</div>';
+    return; }
+  const rows=document.getElementById('rom-rows');
+  let h='';
+  for(let i=0;i<rom.length;i++){
+    const instr=rom[i];
+    const isA=(instr&0x8000)===0;
+    const srcLine=romToSrc[i];
+    const binStr=b16(instr);
+    // Format binary with colour — accurate field breakdown
+    let binHtml;
+    if(isA){
+      // A-instruction: bit15=0, bits14-0 = value
+      binHtml=`<span style="color:var(--td)">0</span><span style="color:var(--c)">${binStr.slice(1)}</span>`;
+    } else {
+      // C-instruction: 111 | a(1) | cccccc(6) | ddd(3) | jjj(3)
+      // bits: [0:2]=111, [3]=a, [4:9]=comp, [10:12]=dest, [13:15]=jump
+      binHtml=`<span style="color:var(--td)">111</span>` +
+               `<span style="color:var(--c)">${binStr[3]}</span>` +
+               `<span style="color:var(--g)">${binStr.slice(4,10)}</span>` +
+               `<span style="color:var(--p)">${binStr.slice(10,13)}</span>` +
+               `<span style="color:var(--r)">${binStr.slice(13)}</span>`;
+    }
+    // Decoded
+    let decoded;
+    if(isA) decoded=`@${instr&0x7FFF}`;
+    else {
+      const a=(instr>>12)&1,comp=(instr>>6)&0x3F,dest=(instr>>3)&0x7,jump=instr&0x7;
+      const jn=['','JGT','JEQ','JGE','JLT','JNE','JLE','JMP'];
+      const dn=[]; if(dest&4)dn.push('A');if(dest&2)dn.push('D');if(dest&1)dn.push('M');
+      decoded=(dn.length?dn.join('')+'=':'')+compStr(comp,a)+(jump?';'+jn[jump]:'');
+    }
+    h+=`<div class="rom-row${i===PC?' pc-row':''}${breakpoints.has(srcLine)?' bp-row':''}" id="rr-${i}" onclick="romRowClick(${i},${srcLine})">
+      <div class="rc-pc">${i===PC?'▶':''}</div>
+      <div class="rc-addr">${i}</div>
+      <div class="rc-bin">${binHtml}</div>
+      <div class="rc-type ${isA?'a':'c'}">${isA?'A-INSTR':'C-INSTR'}</div>
+      <div class="rc-decoded">${decoded}</div>
+      <div class="rc-src">${esc((srcLines[srcLine]||'').trim())}</div>
+    </div>`;
+  }
+  rows.innerHTML=h;
+  updateRomViewer();
+}
+
+function updateRomViewer(){
+  if(!assembled) return;
+  // Update PC highlight
+  document.querySelectorAll('.rom-row').forEach((el,i)=>{
+    const isPC = (i===PC);
+    el.classList.toggle('pc-row', isPC);
+    el.querySelector('.rc-pc').textContent = isPC ? '▶' : '';
+  });
+  // Auto-scroll PC into view
+  const pcRow=document.getElementById(`rr-${PC}`);
+  if(pcRow && centerTab==='rom'){
+    pcRow.scrollIntoView({block:'nearest',behavior:'smooth'});
+  }
+}
+
+function romRowClick(romIdx, srcLine){
+  // Jump editor to that source line
+  const ed=document.getElementById('editor');
+  const lines=srcLines;
+  let pos=0;
+  for(let i=0;i<srcLine;i++) pos+=lines[i].length+1;
+  ed.focus(); ed.setSelectionRange(pos,pos);
+  const lh=19, lineY=10+srcLine*lh;
+  ed.scrollTop=Math.max(0,lineY-ed.clientHeight/3);
+  highlightSrcLine(srcLine);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  BREAKPOINTS
+// ═══════════════════════════════════════════════════════════════════
+function toggleBreakpoint(lineIdx){
+  if(breakpoints.has(lineIdx)) breakpoints.delete(lineIdx);
+  else breakpoints.add(lineIdx);
+  doHighlight(); // re-render line numbers
+  if(assembled) buildRomViewer(); // update ROM viewer
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SCREEN
+// ═══════════════════════════════════════════════════════════════════
+const scv=document.getElementById('screen-canvas');
+const scc=scv.getContext('2d');
+
+function clearScreenCanvas(){
+  scc.fillStyle='#0a160a'; scc.fillRect(0,0,512,256);
+}
+clearScreenCanvas();
+
+function clearScreen(){
+  for(let i=SCREEN_BASE;i<SCREEN_BASE+8192;i++) ram[i]=0;
+  clearScreenCanvas();
+  if(ramTab==='screen') buildRamTabContent();
+}
+
+function updateScreenAt(addr){
+  if(addr<SCREEN_BASE||addr>=SCREEN_BASE+8192) return;
+  const off=addr-SCREEN_BASE;
+  const row=Math.floor(off/32), col=(off%32)*16;
+  const word=ram[addr]&0xFFFF;
+  const id=scc.createImageData(16,1);
+  for(let b=0;b<16;b++){
+    const on=(word>>b)&1, i=b*4;
+    if(on){id.data[i]=30;id.data[i+1]=255;id.data[i+2]=100;id.data[i+3]=255;}
+    else{id.data[i]=10;id.data[i+1]=22;id.data[i+2]=10;id.data[i+3]=255;}
+  }
+  scc.putImageData(id,col,row);
+}
+
+function updateScreenFull(){
+  clearScreenCanvas();
+  for(let a=SCREEN_BASE;a<SCREEN_BASE+8192;a++) if(ram[a]) updateScreenAt(a);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CPU CANVAS
+// ═══════════════════════════════════════════════════════════════════
+const cpuC=document.getElementById('cpu-canvas');
+const cpuX=cpuC.getContext('2d');
+
+function resizeCPU(){ cpuC.width=cpuC.parentElement.clientWidth; cpuC.height=cpuC.parentElement.clientHeight; drawCPU(); }
+window.addEventListener('resize',resizeCPU);
+setTimeout(resizeCPU,80);
+
+function triggerCPUAnim(target,value){ cpuAnimActive=target; cpuAnimT=0; cpuAnimStart=performance.now(); if(!cpuRafPending){cpuRafPending=true;requestAnimationFrame(animateCPU);} }
+function animateCPU(now){ cpuAnimT=Math.min(1,(now-cpuAnimStart)/700); drawCPU(); if(cpuAnimT<1) requestAnimationFrame(animateCPU); else{cpuRafPending=false;cpuAnimActive='';drawCPU();} }
+
+// What to highlight during micro-steps
+function getMicroHighlights(){
+  if(!microMode || microStage===-1) return new Set();
+  const isA = microData ? microData.isA : true;
+  if(isA){
+    return [
+      new Set(['ROM','PC']),      // FETCH
+      new Set(['INSTR']),         // DECODE
+      new Set(['A','AMUX']),      // LOAD A
+      new Set(['PC']),            // PC+1
+    ][microStage] || new Set();
+  } else {
+    const md = microData;
+    return [
+      new Set(['ROM','PC']),      // FETCH
+      new Set(['INSTR']),         // DECODE
+      new Set(['AMUX',(md&&md.a)?'RAM':'A']), // SEL Y
+      new Set(['ALU']),           // COMPUTE
+      (() => {                    // WRITE
+        const s = new Set();
+        if(md&&md.dest&4) s.add('A'); if(md&&md.dest&2) s.add('D'); if(md&&md.dest&1) s.add('RAM');
+        return s;
+      })(),
+      new Set(['PC']),            // JUMP/PC
+    ][microStage] || new Set();
+  }
+}
+
+function drawCPU(){
+  const W=cpuC.width, H=cpuC.height;
+  if(W<50||H<50) return;
+  cpuX.clearRect(0,0,W,H);
+
+  // Dot grid background
+  cpuX.fillStyle='rgba(30,48,80,0.25)';
+  for(let x=20;x<W;x+=25) for(let y=20;y<H;y+=25){
+    cpuX.beginPath(); cpuX.arc(x,y,1,0,Math.PI*2); cpuX.fill();
+  }
+
+  const sc=Math.min(W/660,H/440);
+  const cx=W*0.47, cy=H*0.47;
+
+  const L={
+    ROM:  {x:cx-295*sc, y:cy-105*sc, w:100*sc, h:72*sc},
+    PC:   {x:cx-295*sc, y:cy+28*sc,  w:100*sc, h:55*sc},
+    INSTR:{x:cx-172*sc, y:cy-115*sc, w:120*sc, h:50*sc},
+    AMUX: {x:cx-32*sc,  y:cy-135*sc, w:65*sc,  h:40*sc},
+    A:    {x:cx-172*sc, y:cy-45*sc,  w:110*sc, h:55*sc},
+    D:    {x:cx-172*sc, y:cy+38*sc,  w:110*sc, h:55*sc},
+    ALU:  {x:cx-20*sc,  y:cy-58*sc,  w:120*sc, h:95*sc},
+    DMUX: {x:cx+115*sc, y:cy-22*sc,  w:60*sc,  h:40*sc},
+    RAM:  {x:cx+195*sc, y:cy-75*sc,  w:112*sc, h:98*sc},
+  };
+
+  const microHL = getMicroHighlights();
+  function isHL(name){ return microMode ? microHL.has(name) : (cpuAnimActive===name||(cpuAnimActive==='D'&&name==='D')||(cpuAnimActive==='A'&&name==='A')||(cpuAnimActive==='M'&&name==='RAM')); }
+
+  function wire(x1,y1,x2,y2,c='rgba(42,72,112,0.5)',w=1.5){
+    cpuX.save(); cpuX.strokeStyle=c; cpuX.lineWidth=w;
+    cpuX.beginPath(); cpuX.moveTo(x1,y1); cpuX.lineTo(x2,y2); cpuX.stroke(); cpuX.restore();
+  }
+  function wireL(x1,y1,mx,y2,c,w){
+    cpuX.save(); cpuX.strokeStyle=c||'rgba(42,72,112,0.5)'; cpuX.lineWidth=w||1.5;
+    cpuX.beginPath(); cpuX.moveTo(x1,y1); cpuX.lineTo(mx,y1); cpuX.lineTo(mx,y2); cpuX.stroke(); cpuX.restore();
+  }
+  function arrow(x,y,dir,c){ const s=5*sc; cpuX.save(); cpuX.fillStyle=c||'rgba(42,72,112,0.8)'; cpuX.beginPath(); if(dir==='r'){cpuX.moveTo(x,y);cpuX.lineTo(x-s,y-s*.7);cpuX.lineTo(x-s,y+s*.7);}else if(dir==='d'){cpuX.moveTo(x,y);cpuX.lineTo(x-s*.7,y-s);cpuX.lineTo(x+s*.7,y-s);}cpuX.closePath();cpuX.fill();cpuX.restore(); }
+
+  // Wires
+  const wA='rgba(0,212,255,0.35)', wG='rgba(0,255,140,0.35)', wAU='rgba(32,192,96,0.5)', wR='rgba(255,179,0,0.4)', wP='rgba(144,96,224,0.4)';
+
+  // PC → INSTR
+  const pcMid=L.PC.y+L.PC.h/2, instL=L.INSTR.x, instM=L.INSTR.y+L.INSTR.h/2;
+  wireL(L.PC.x+L.PC.w,pcMid,instL-8*sc,instM,wP);
+  wire(instL-8*sc,instM,instL,instM,wP);
+  arrow(instL,instM,'r',wP+'aa');
+
+  // INSTR → AMUX
+  wire(L.INSTR.x+L.INSTR.w/2,L.INSTR.y+L.INSTR.h,L.AMUX.x+L.AMUX.w/2,L.AMUX.y,'rgba(64,128,192,0.4)');
+
+  // AMUX → A
+  wire(L.AMUX.x+L.AMUX.w/2,L.AMUX.y+L.AMUX.h,L.A.x+L.A.w/2,L.A.y,wA);
+  arrow(L.A.x+L.A.w/2,L.A.y,'d',wA+'aa');
+
+  // A → ALU (y)
+  wire(L.A.x+L.A.w,L.A.y+L.A.h/2,L.ALU.x,L.ALU.y+20*sc,wA);
+  arrow(L.ALU.x,L.ALU.y+20*sc,'r',wA+'aa');
+
+  // D → ALU (x)
+  wire(L.D.x+L.D.w,L.D.y+L.D.h/2,L.ALU.x,L.ALU.y+L.ALU.h-20*sc,wG);
+  arrow(L.ALU.x,L.ALU.y+L.ALU.h-20*sc,'r',wG+'aa');
+
+  // ALU → DMUX
+  wire(L.ALU.x+L.ALU.w,L.ALU.y+L.ALU.h/2,L.DMUX.x,L.DMUX.y+L.DMUX.h/2,wAU,2);
+  arrow(L.DMUX.x,L.DMUX.y+L.DMUX.h/2,'r',wAU+'aa');
+
+  // DMUX → RAM
+  wire(L.DMUX.x+L.DMUX.w,L.DMUX.y+L.DMUX.h/2,L.RAM.x,L.RAM.y+L.RAM.h/2,wR);
+  arrow(L.RAM.x,L.RAM.y+L.RAM.h/2,'r',wR+'aa');
+
+  // A → RAM (address, dashed)
+  cpuX.save(); cpuX.setLineDash([4,5]); cpuX.strokeStyle='rgba(0,180,220,0.18)'; cpuX.lineWidth=1;
+  cpuX.beginPath(); cpuX.moveTo(L.A.x+L.A.w/2,L.A.y+L.A.h); cpuX.lineTo(L.RAM.x+L.RAM.w/2,L.RAM.y+L.RAM.h);
+  cpuX.stroke(); cpuX.setLineDash([]); cpuX.restore();
+
+  // D feedback
+  wireL(L.ALU.x+L.ALU.w/2,L.ALU.y+L.ALU.h+4*sc,L.D.x+L.D.w/2,L.D.y,'rgba(0,255,140,0.15)',1);
+
+  function adjustAlpha(hex,a){ return hex.replace(/^#([0-9a-f]{6})$/i,(_,h)=>{const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);return `rgba(${r},${g},${b},${a})`;}); }
+
+  function box(name,title,v1,v2, bx,by,bw,bh, color){
+    const active = isHL(name);
+    cpuX.save();
+    if(active){cpuX.shadowBlur=28*sc;cpuX.shadowColor=color;}
+    const gr=cpuX.createLinearGradient(bx,by,bx+bw,by+bh);
+    gr.addColorStop(0,active?color.replace('#','rgba(')+'22)' :`rgba(15,22,32,0.95)`);
+    gr.addColorStop(1,active?color.replace('#','rgba(')+'08)' :`rgba(10,16,24,0.95)`);
+    cpuX.fillStyle=gr; cpuX.strokeStyle=active?color:`rgba(42,72,112,0.7)`;
+    cpuX.lineWidth=active?1.8:1;
+    cpuX.beginPath(); cpuX.roundRect(bx,by,bw,bh,4*sc); cpuX.fill(); cpuX.stroke();
+    if(active){cpuX.fillStyle=color;cpuX.beginPath();cpuX.roundRect(bx+1,by+1,bw-2,3*sc,[2*sc,2*sc,0,0]);cpuX.fill();}
+    cpuX.restore();
+    cpuX.fillStyle=active?'#e0f0ff':'rgba(80,110,150,0.9)';
+    cpuX.font=`${Math.max(7,7.5*sc)}px 'Exo 2',sans-serif`;
+    cpuX.textAlign='center';
+    cpuX.fillText(title,bx+bw/2,by+13*sc);
+    cpuX.fillStyle=active?color:adjustAlpha(color,0.5);
+    cpuX.font=`${Math.max(10,12*sc)}px 'Share Tech Mono',monospace`;
+    cpuX.fillText(v1,bx+bw/2,by+bh/2+4*sc);
+    if(v2){cpuX.fillStyle='rgba(74,106,138,0.8)';cpuX.font=`${Math.max(7,7*sc)}px 'Share Tech Mono',monospace`;cpuX.fillText(v2,bx+bw/2,by+bh-8*sc);}
+  }
+
+  function drawALU(bx,by,bw,bh){
+    const active=isHL('ALU');
+    const color='#20c060';
+    const off=14*sc;
+    cpuX.save();
+    if(active){cpuX.shadowBlur=30*sc;cpuX.shadowColor=color;}
+    const gr=cpuX.createLinearGradient(bx,by,bx+bw,by+bh);
+    gr.addColorStop(0,active?`rgba(32,192,96,0.18)`:`rgba(10,24,15,0.95)`);
+    gr.addColorStop(1,active?`rgba(32,192,96,0.06)`:`rgba(8,18,12,0.95)`);
+    cpuX.fillStyle=gr; cpuX.strokeStyle=active?color:`rgba(24,64,42,0.7)`; cpuX.lineWidth=active?2:1;
+    cpuX.beginPath(); cpuX.moveTo(bx+off,by); cpuX.lineTo(bx+bw-off,by);
+    cpuX.lineTo(bx+bw,by+bh); cpuX.lineTo(bx,by+bh); cpuX.closePath(); cpuX.fill(); cpuX.stroke();
+    cpuX.restore();
+    cpuX.fillStyle=active?'#e0f0ff':'rgba(80,110,150,0.9)';
+    cpuX.font=`${Math.max(7,7.5*sc)}px 'Exo 2',sans-serif`; cpuX.textAlign='center';
+    cpuX.fillText('ALU',bx+bw/2,by+13*sc);
+    const aluOut=assembled&&PC<rom.length?previewALU():'—';
+    cpuX.fillStyle=active?color:'rgba(32,150,80,0.5)';
+    cpuX.font=`${Math.max(10,13*sc)}px 'Share Tech Mono',monospace`;
+    cpuX.fillText(aluOut.toString(),bx+bw/2,by+bh/2+4*sc);
+    cpuX.fillStyle='rgba(74,106,138,0.7)';
+    cpuX.font=`${Math.max(7,7*sc)}px 'Share Tech Mono',monospace`;
+    cpuX.fillText('OUTPUT',bx+bw/2,by+bh-8*sc);
+  }
+
+  // Micro-stage label overlay
+  if(microMode && microStage !== -1){
+    const stageNames = microData?.isA ? MICRO_A : MICRO_C;
+    const stageName = stageNames[microStage] || '';
+    cpuX.save();
+    cpuX.font=`bold ${Math.max(10,11*sc)}px 'Exo 2',sans-serif`;
+    cpuX.fillStyle='rgba(192,128,255,0.9)'; cpuX.textAlign='right';
+    cpuX.fillText(`◈ STAGE ${microStage+1}: ${stageName}`, W-12, 20);
+    cpuX.restore();
+  }
+
+  // Draw boxes
+  box('ROM','ROM',assembled&&PC<rom.length?`[${PC}]`:'—','instruction',L.ROM.x,L.ROM.y,L.ROM.w,L.ROM.h,'#5050c0');
+  box('PC','PROG.CTR',PC.toString(),`→ ROM[${PC}]`,L.PC.x,L.PC.y,L.PC.w,L.PC.h,'#9060e0');
+  box('INSTR','DECODER',assembled&&PC<rom.length?(rom[PC]&0x8000?'C-instr':'A-instr'):'—',
+    assembled&&PC<rom.length?`ROM[${PC}]`:'',L.INSTR.x,L.INSTR.y,L.INSTR.w,L.INSTR.h,'#4080c0');
+  box('AMUX','SELECT','A/ALU','mux',L.AMUX.x,L.AMUX.y,L.AMUX.w,L.AMUX.h,'#80c0ff');
+  box('A','A REG',s16(regA).toString(),b16(regA).slice(0,8)+'…',L.A.x,L.A.y,L.A.w,L.A.h,'#00d4ff');
+  box('D','D REG',s16(regD).toString(),b16(regD).slice(0,8)+'…',L.D.x,L.D.y,L.D.w,L.D.h,'#00ff8c');
+  drawALU(L.ALU.x,L.ALU.y,L.ALU.w,L.ALU.h);
+  box('DMUX','OUT MUX','→','dest sel',L.DMUX.x,L.DMUX.y,L.DMUX.w,L.DMUX.h,'#80a0c0');
+  const rAddr=regA&0x7FFF;
+  box('RAM','RAM',`[${rAddr}]=${s16(ram[rAddr])}`,rAddr>=SCREEN_BASE?'SCREEN':'data',L.RAM.x,L.RAM.y,L.RAM.w,L.RAM.h,'#ffb300');
+
+  // Bit display on INSTR box
+  if(assembled&&PC<rom.length){
+    const instr=rom[PC], bits=b16(instr);
+    const bx=L.INSTR.x, by=L.INSTR.y, bw=L.INSTR.w, bh=L.INSTR.h;
+    const isA=(instr&0x8000)===0;
+    const totalW=bw-12*sc, bitW=totalW/16, startX=bx+6*sc, bitY=by+bh-6*sc;
+    for(let i=0;i<16;i++){
+      const bv=bits[i]==='1';
+      cpuX.fillStyle=bv?(isA?'rgba(0,212,255,0.8)':'rgba(0,255,140,0.7)'):'rgba(60,80,110,0.5)';
+      cpuX.font=`${Math.max(6,6.5*sc)}px 'Share Tech Mono',monospace`;
+      cpuX.textAlign='center';
+      cpuX.fillText(bits[i],startX+i*bitW+bitW/2,bitY);
+    }
+  }
+
+  // Animation packet
+  if(!microMode && cpuAnimActive && cpuAnimT<1){
+    const t=cpuAnimT;
+    const lerp=(a,b,t)=>a+(b-a)*t;
+    function dot(x,y,col,r=4){ cpuX.save();cpuX.beginPath();cpuX.arc(x,y,r*sc,0,Math.PI*2);cpuX.fillStyle=col;cpuX.shadowBlur=16*sc;cpuX.shadowColor=col;cpuX.fill();cpuX.restore(); }
+    const ax=L.A.x+L.A.w/2, ay=L.A.y+L.A.h/2;
+    const alux=L.ALU.x+L.ALU.w/2, aluy=L.ALU.y+L.ALU.h/2;
+    const dmx=L.DMUX.x+L.DMUX.w/2, dmy=L.DMUX.y+L.DMUX.h/2;
+    for(let i=0;i<6;i++){
+      const ft=Math.max(0,t-i*0.08);
+      const al=(6-i)/6*0.35;
+      if(cpuAnimActive==='A') dot(lerp(L.INSTR.x+L.INSTR.w/2,ax,ft),lerp(L.INSTR.y+L.INSTR.h,ay,ft),`rgba(0,212,255,${al})`,4);
+      else if(cpuAnimActive==='D'){ if(ft<0.5) dot(lerp(ax,L.ALU.x,ft*2),lerp(ay,aluy,ft*2),`rgba(0,212,255,${al})`,3); else dot(lerp(L.ALU.x+L.ALU.w,L.D.x+L.D.w/2,(ft-.5)*2),lerp(aluy,L.D.y+L.D.h/2,(ft-.5)*2),`rgba(0,255,140,${al})`,4); }
+      else if(cpuAnimActive==='M'){ if(ft<0.5) dot(lerp(L.ALU.x+L.ALU.w,dmx,ft*2),lerp(aluy,dmy,ft*2),`rgba(32,192,96,${al})`,3); else dot(lerp(L.DMUX.x+L.DMUX.w,L.RAM.x,(ft-.5)*2),lerp(dmy,L.RAM.y+L.RAM.h/2,(ft-.5)*2),`rgba(255,179,0,${al})`,4); }
+    }
+    if(cpuAnimActive==='A') dot(lerp(L.INSTR.x+L.INSTR.w/2,ax,t),lerp(L.INSTR.y+L.INSTR.h,ay,t),`rgba(0,212,255,1)`,5);
+  }
+
+  cpuX.textAlign='left'; cpuX.fillStyle='rgba(60,90,130,0.5)';
+  cpuX.font=`${Math.max(8,8*sc)}px 'Share Tech Mono',monospace`;
+  cpuX.fillText('16-BIT HACK CPU',10,H-12);
+}
+
+function previewALU(){
+  if(!assembled||PC>=rom.length) return 0;
+  const instr=rom[PC];
+  if((instr&0x8000)===0) return instr&0x7FFF;
+  const a=(instr>>12)&1, comp=(instr>>6)&0x3F;
+  return s16(alu(comp,s16(regD),a?s16(ram[regA&0x7FFF]):s16(regA)));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  EXPLAIN PANELS
+// ═══════════════════════════════════════════════════════════════════
+function explainA(val, raw, pc){
+  document.getElementById('exp-tag').textContent='▸ A-Instruction Executed';
+  let html=`<div class="exp-row"><span class="erl">INSTR</span><span><span class="K">${esc(raw)||('@'+val)}</span> — load <span class="V">${val}</span> into A</span></div>`;
+  html+=`<div class="exp-row"><span class="erl">WRITE</span><span><span class="R">A</span> ← <span class="V">${val}</span></span></div>`;
+  html+=`<div class="exp-row"><span class="erl">EFFECT</span><span>M now means <span class="K">RAM[${val}]</span>. Next C-instruction can use <span class="K">M</span> to read/write that cell.</span></div>`;
+  html+=`<div class="exp-row"><span class="erl">PC</span><span><span class="P">PC</span> ← <span class="V">${pc+1}</span></span></div>`;
+  document.getElementById('exp-body').innerHTML=html;
+  document.getElementById('instr-decoded').innerHTML=`<span style="color:var(--c)">A-instr</span>  →  A ← <span style="color:var(--a)">${val}</span>`;
+}
+
+function explainC(comp,a,dest,jump,result,destNames,jumped,raw,x,y,aBefore){
+  const cs=compStr(comp,a);
+  const jnames=['','JGT','JEQ','JGE','JLT','JNE','JLE','JMP'];
+  const dn=[]; if(dest&4)dn.push('A');if(dest&2)dn.push('D');if(dest&1)dn.push(`RAM[${aBefore}]`);
+  document.getElementById('exp-tag').textContent='▸ C-Instruction Executed';
+  let html=`<div class="exp-row"><span class="erl">INSTR</span><span><span class="K">${esc(raw)||'...'}</span></span></div>`;
+  html+=`<div class="exp-row"><span class="erl">INPUTS</span><span>x = D = <span class="V">${x}</span> &nbsp; y = ${a?`M=RAM[${aBefore}]`:'A'} = <span class="V">${y}</span></span></div>`;
+  html+=`<div class="exp-row"><span class="erl">COMPUTE</span><span><span class="K">${cs}</span> → <span class="V">${result}</span></span></div>`;
+  html+=`<div class="exp-row"><span class="erl">WRITE</span><span><span class="R">${dn.join(', ')||'—'}</span> ← <span class="V">${result}</span></span></div>`;
+  if(dest&1){
+    html+=`<div class="exp-row"><span class="erl">NOTE</span><span style="color:var(--td)">M write uses A captured at start (${aBefore}), not current A.</span></div>`;
+  }
+  if(jump){
+    html+=`<div class="exp-row"><span class="erl">JUMP</span><span>${jumped?`<b style="color:var(--g)">✓ ${jnames[jump]} taken → PC=${PC}</b>`:`<b style="color:var(--td)">✗ ${jnames[jump]} not taken → PC=${PC}</b>`}</span></div>`;
+  }
+  document.getElementById('exp-body').innerHTML=html;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SYNTAX HIGHLIGHTING + EDITOR
+// ═══════════════════════════════════════════════════════════════════
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function doHighlight(){
+  const src=document.getElementById('editor').value;
+  const lines=src.split('\n');
+  let html='';
+  lines.forEach(line=>{
+    const ci=line.indexOf('//');
+    const code=ci>=0?line.slice(0,ci):line;
+    const cmt=ci>=0?line.slice(ci):'';
+    const s=code.trim();
+    let lh='';
+    if(s.startsWith('('))       lh=code.replace(s,`<span class="hlbl">${esc(s)}</span>`);
+    else if(s.startsWith('@'))  lh=code.replace(s,`<span class="ha">${esc(s)}</span>`);
+    else if(s){
+      let out='';
+      if(code.includes('=')){
+        const ep=code.indexOf('=');
+        out+=`<span class="hd">${esc(code.slice(0,ep))}</span>=`;
+        const rest2=code.slice(ep+1).trimEnd();
+        if(rest2.includes(';')){
+          const sp2=rest2.indexOf(';');
+          out+=`<span class="hc">${esc(rest2.slice(0,sp2))}</span>;<span class="hj">${esc(rest2.slice(sp2+1).trim())}</span>`;
+        } else out+=`<span class="hc">${esc(rest2)}</span>`;
+        lh=out;
+      } else if(code.includes(';')){
+        const sp=code.indexOf(';');
+        lh=`<span class="hc">${esc(code.slice(0,sp).trim())}</span>;<span class="hj">${esc(code.slice(sp+1).trim())}</span>`;
+      } else lh=`<span class="hc">${esc(code)}</span>`;
+    } else lh=esc(code);
+    if(cmt) lh+=`<span class="hcmt">${esc(cmt)}</span>`;
+    html+=lh+'\n';
+  });
+  document.getElementById('hl-layer').innerHTML=html;
+  updateLnums(lines.length);
+}
+
+function updateLnums(n){
+  const cur=PC>=0&&PC<romToSrc.length?romToSrc[PC]:-1;
+  let h='';
+  for(let i=1;i<=n;i++){
+    const isBP=breakpoints.has(i-1);
+    h+=`<span class="ln${i-1===cur?' cur':''}${isBP?' bp':''}" data-line="${i-1}">${i}</span>`;
+  }
+  document.getElementById('lnums').innerHTML=h;
+}
+
+// Breakpoint click on line number gutter
+document.getElementById('lnums').addEventListener('click',e=>{
+  const span=e.target.closest('.ln');
+  if(!span) return;
+  const line=parseInt(span.dataset.line);
+  if(!isNaN(line)) toggleBreakpoint(line);
+});
+
+// Editor scroll sync
+const ed=document.getElementById('editor');
+ed.addEventListener('scroll',()=>{
+  const st=ed.scrollTop;
+  document.getElementById('hl-layer').style.top=-st+'px';
+  document.getElementById('lnums').style.marginTop=-st+'px';
+  document.getElementById('active-bg').style.marginTop=-st+'px';
+});
+ed.addEventListener('input',doHighlight);
+ed.addEventListener('keydown',e=>{
+  if(e.key==='Tab'){e.preventDefault();const s=ed.selectionStart,en=ed.selectionEnd;ed.value=ed.value.substring(0,s)+'  '+ed.value.substring(en);ed.selectionStart=ed.selectionEnd=s+2;doHighlight();}
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();doAssemble();}
+});
+
+// Update cursor position display on click, keyboard, and selection
+function updateCursorPos(){
+  const lines=ed.value.substring(0,ed.selectionStart).split('\n');
+  document.getElementById('cur-pos').textContent=`Ln ${lines.length}`;
+}
+ed.addEventListener('click',updateCursorPos);
+ed.addEventListener('keyup',updateCursorPos);
+ed.addEventListener('select',updateCursorPos);
+
+function highlightSrcLine(idx){
+  if(idx===undefined||idx<0) return;
+  const bg=document.getElementById('active-bg'), lh=19;
+  bg.style.display='block';
+  bg.style.top=(10+idx*lh)+'px';
+  const top=ed.scrollTop, h=ed.clientHeight, lineY=10+idx*lh;
+  if(lineY<top+20||lineY>top+h-40) ed.scrollTop=lineY-h/3;
+  updateLnums(srcLines.length);
+}
+
+// Global keyboard shortcuts
+document.addEventListener('keydown',e=>{
+  if(e.key==='F5'){e.preventDefault(); if(!assembled) doAssemble(); else if(!isProgramDone()) doToggleRun();}
+  if(e.key==='F8'){e.preventDefault(); if(assembled && !isProgramDone()) doStepOrMicro();}
+  if(e.key==='F6'){e.preventDefault(); doReset();}
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  LOG / UI HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function addLog(msg,type='inf'){
+  const el=document.createElement('div'); el.className=`log-e ${type}`;
+  el.textContent=`> ${msg}`;
+  const log=document.getElementById('log'); log.appendChild(el); log.scrollTop=log.scrollHeight;
+}
+function clearLog(){ document.getElementById('log').innerHTML=''; }
+
+function toggleRef(){
+  const p=document.getElementById('ref-panel'),a=document.getElementById('ref-arrow');
+  p.classList.toggle('open'); a.textContent=p.classList.contains('open')?'▾':'▸';
+}
+function toggleALUInspector(){
+  const p=document.getElementById('alu-panel'),a=document.getElementById('alu-arrow');
+  p.classList.toggle('open'); a.textContent=p.classList.contains('open')?'▾':'▸';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SAMPLES
+// ═══════════════════════════════════════════════════════════════════
+const SAMPLES={
+  help:`// ════════════════════════════════════
+// ★ HOW HACK ASSEMBLY WORKS
+// ════════════════════════════════════
+// The Hack computer has two registers:
+//   A — the "address" register
+//   D — the "data" register
+//
+// And two instruction types:
+//
+// ▸ A-INSTRUCTION: @value
+//   Loads a number into A.
+//   Example: @42 puts 42 into A.
+//   After this, "M" means RAM[42].
+//
+// ▸ C-INSTRUCTION: dest=comp;jump
+//   Computes something and stores it.
+//   Example: D=A  (copy A into D)
+//   Example: M=D+1 (RAM[A] = D + 1)
+//   Example: D;JGT (jump if D > 0)
+//
+// ▸ WHY THE INFINITE LOOP?
+//   The CPU never stops fetching.
+//   Without (END) @END 0;JMP, the
+//   PC would run past your code
+//   into garbage memory. The loop
+//   safely parks the CPU.
+//
+// ▸ TRY IT: Press ASSEMBLE, then STEP
+//   Watch A and D change below!
+// ════════════════════════════════════
+
+@10      // A = 10
+D=A      // D = A = 10
+@3
+D=D+A    // D = 10 + 3 = 13
+
+@0
+M=D      // RAM[0] = 13 — check R0 below!
+
+// Park the CPU in an infinite loop
+(END)
+@END
+0;JMP`,
+
+  hello:`// ════════════════════════════════════
+// ① HELLO — Set a Value
+// ════════════════════════════════════
+// Goal: store the number 42 into RAM[0]
+// Two instruction types:
+//   @number  — A-instruction: loads a number into A
+//   dest=comp — C-instruction: computes something
+
+@42      // Load 42 into A register
+D=A      // Copy A into D  (D = 42)
+
+@0       // Point A at address 0
+M=D      // Write D into RAM[0]  →  RAM[0] = 42
+
+// Always end with an infinite loop
+(END)
+@END
+0;JMP`,
+
+  add:`// ════════════════════════════════════
+// ② ADD TWO NUMBERS
+// ════════════════════════════════════
+// Computes RAM[2] = RAM[0] + RAM[1]
+
+@10
+D=A
+@0
+M=D      // RAM[0] = 10
+
+@7
+D=A
+@1
+M=D      // RAM[1] = 7
+
+// Now add:
+@0
+D=M      // D = RAM[0] = 10
+
+@1
+D=D+M    // D = D + RAM[1] = 17
+
+@2
+M=D      // RAM[2] = 17
+
+(END)
+@END
+0;JMP`,
+
+  sub:`// ════════════════════════════════════
+// ③ SUBTRACT NUMBERS
+// ════════════════════════════════════
+// RAM[2] = RAM[0] - RAM[1]
+
+@20
+D=A
+@0
+M=D
+
+@8
+D=A
+@1
+M=D
+
+@0
+D=M
+
+@1
+D=D-M    // 20 - 8 = 12
+
+@2
+M=D
+
+(END)
+@END
+0;JMP`,
+
+  abs:`// ════════════════════════════════════
+// ④ ABSOLUTE VALUE
+// ════════════════════════════════════
+// RAM[1] = |RAM[0]|
+// Set RAM[0] to a negative number
+// before running to test!
+
+@0
+D=M      // D = RAM[0]
+
+// If D >= 0, skip negation
+@POSITIVE
+D;JGE
+
+// D is negative — flip sign
+D=-D
+
+(POSITIVE)
+@1
+M=D
+
+(END)
+@END
+0;JMP`,
+
+  loop:`// ════════════════════════════════════
+// ⑤ COUNTDOWN LOOP
+// ════════════════════════════════════
+// Counts from 10 down to 0 in RAM[0]
+// This is your first loop!
+
+@10
+D=A
+@0
+M=D      // RAM[0] = 10
+
+(LOOP)   // Label — a named position in ROM
+@0
+M=M-1    // Decrement RAM[0]
+D=M      // Read new value into D
+
+@LOOP
+D;JGT    // If D > 0, jump back to LOOP
+
+// Falls through when D = 0
+(END)
+@END
+0;JMP`,
+
+  sum:`// ════════════════════════════════════
+// ⑥ SUM 1+2+3+...+10 = 55
+// ════════════════════════════════════
+
+@10
+D=A
+@0
+M=D      // counter = 10
+
+@0
+D=A
+@1
+M=D      // sum = 0
+
+(LOOP)
+@0
+D=M
+@END
+D;JEQ    // done when counter = 0
+
+@1
+M=D+M    // sum += counter
+
+@0
+M=M-1    // counter--
+
+@LOOP
+0;JMP
+
+(END)
+@END
+0;JMP`,
+
+  mult:`// ════════════════════════════════════
+// ⑦ MULTIPLY (repeated addition)
+// ════════════════════════════════════
+// RAM[0]=6, RAM[1]=7 → RAM[2]=42
+
+@6
+D=A
+@0
+M=D
+
+@7
+D=A
+@1
+M=D
+
+@0
+D=A
+@2
+M=D      // result = 0
+
+@1
+D=M
+@cnt
+M=D      // counter = 7
+
+(LOOP)
+@cnt
+D=M
+@END
+D;JLE
+
+@0
+D=M
+@2
+M=D+M    // result += 6
+
+@cnt
+M=M-1
+
+@LOOP
+0;JMP
+
+(END)
+@END
+0;JMP`,
+
+  max:`// ════════════════════════════════════
+// ⑧ MAXIMUM OF TWO
+// ════════════════════════════════════
+// RAM[2] = max(RAM[0], RAM[1])
+
+@20
+D=A
+@0
+M=D
+
+@35
+D=A
+@1
+M=D
+
+@0
+D=M
+@1
+D=D-M
+
+@FIRST
+D;JGT    // if RAM[0]-RAM[1] > 0, RAM[0] wins
+
+@1
+D=M
+@2
+M=D
+@END
+0;JMP
+
+(FIRST)
+@0
+D=M
+@2
+M=D
+
+(END)
+@END
+0;JMP`,
+
+  pixel:`// ════════════════════════════════════
+// ⑨ DRAW A SINGLE PIXEL
+// ════════════════════════════════════
+// Screen = RAM[16384..24575]
+// Each word = 16 horizontal pixels (1 bit each)
+// bit 0 = leftmost pixel of each group
+
+@SCREEN  // row 0, columns 0-15
+M=1      // turn on pixel 0  (bit 0 = 1)
+
+// Try M=-1 for all 16 pixels on
+// Try M=3  for pixels 0 and 1
+
+// Row 1 starts at RAM[16384+32]
+@16416
+M=-1
+
+(END)
+@END
+0;JMP`,
+
+  line:`// ════════════════════════════════════
+// ⑩ VERTICAL LINE
+// ════════════════════════════════════
+// Draws a line down the left edge.
+// Each row is 32 words apart, so we
+// add 32 to the address each loop.
+
+@32
+D=A
+@cnt
+M=D      // 32 rows to draw
+
+@SCREEN
+D=A
+@addr
+M=D      // addr = 16384 (SCREEN)
+
+(LOOP)
+@cnt
+D=M
+@END
+D;JLE    // done when counter <= 0
+
+@addr
+A=M      // A = current screen address
+M=1      // set first pixel (bit 0)
+
+// Advance addr by 32 (next row)
+@32
+D=A
+@addr
+M=D+M    // addr = addr + 32
+
+@cnt
+M=M-1    // counter--
+@LOOP
+0;JMP
+
+(END)
+@END
+0;JMP`,
+
+  rect:`// ════════════════════════════════════
+// ⑪ FILLED RECTANGLE
+// ════════════════════════════════════
+// 16px wide, 30 rows tall.
+// M=-1 sets all 16 bits (pixels) on.
+// Each row is 32 words apart in the
+// screen memory map.
+
+@30
+D=A
+@R0
+M=D      // row counter = 30
+
+@SCREEN
+D=A
+@R1
+M=D      // R1 = current screen address
+
+(LOOP)
+@R0
+D=M
+@END
+D;JLE    // done when rows <= 0
+
+@R1
+A=M
+M=-1     // fill 16 pixels (all bits on)
+
+// Advance address by 32 (next row)
+@32
+D=A
+@R1
+M=D+M    // R1 = R1 + 32
+
+@R0
+M=M-1    // row counter--
+@LOOP
+0;JMP
+
+(END)
+@END
+0;JMP`,
+
+  fill:`// ════════════════════════════════════
+// ⑫ FILL THE SCREEN
+// ════════════════════════════════════
+// 512x256 pixels = 8192 words
+// We set every word to -1 (all on).
+
+@8192
+D=A
+@cnt
+M=D      // counter = 8192
+
+@SCREEN
+D=A
+@addr
+M=D      // addr starts at SCREEN
+
+(LOOP)
+@cnt
+D=M
+@END
+D;JLE    // done when counter <= 0
+
+@addr
+A=M
+M=-1     // all 16 bits on
+
+@addr
+M=M+1    // addr++ (next consecutive word)
+
+@cnt
+M=M-1    // counter--
+@LOOP
+0;JMP
+
+(END)
+@END
+0;JMP`,
+
+  fib:`// ════════════════════════════════════
+// ⑬ FIBONACCI SEQUENCE
+// ════════════════════════════════════
+// Stores F(0)..F(9) in RAM[0..9]
+// 0, 1, 1, 2, 3, 5, 8, 13, 21, 34
+
+// Seed the first two values
+@0
+D=A
+@R0
+M=D      // RAM[0] = 0
+
+@1
+D=A
+@R1
+M=D      // RAM[1] = 1
+
+// We need to compute F(2)..F(9) = 8 values
+@8
+D=A
+@cnt
+M=D      // counter = 8
+
+@2
+D=A
+@idx
+M=D      // idx = 2 (where we write next)
+
+(LOOP)
+@cnt
+D=M
+@END
+D;JLE    // done when counter <= 0
+
+// D = RAM[idx-1]
+@idx
+D=M
+A=D-1    // A = idx - 1
+D=M      // D = RAM[idx-1]
+
+// D += RAM[idx-2]
+@idx
+A=M
+A=A-1
+A=A-1    // A = idx - 2
+D=D+M    // D = F(n-1) + F(n-2)
+
+// RAM[idx] = D
+@idx
+A=M
+M=D
+
+// Advance
+@idx
+M=M+1    // idx++
+
+@cnt
+M=M-1    // counter--
+@LOOP
+0;JMP
+
+(END)
+@END
+0;JMP`,
+
+  div:`// ════════════════════════════════════
+// ⑭ INTEGER DIVISION
+// ════════════════════════════════════
+// 17 / 5 = 3 remainder 2
+// RAM[2] = quotient, RAM[3] = remainder
+
+@17
+D=A
+@R0
+M=D      // dividend = 17
+
+@5
+D=A
+@R1
+M=D      // divisor = 5
+
+// quotient = 0
+@0
+D=A
+@R2
+M=D
+
+// remainder = dividend
+@R0
+D=M
+@R3
+M=D
+
+(LOOP)
+// if remainder < divisor, done
+@R3
+D=M
+@R1
+D=D-M    // D = remainder - divisor
+@END
+D;JLT    // if negative, done
+
+// remainder -= divisor
+@R3
+M=D      // remainder = D (already subtracted)
+
+// quotient++
+@R2
+M=M+1
+
+@LOOP
+0;JMP
+
+(END)
+@END
+0;JMP`,
+
+  neg:`// ════════════════════════════════════
+// ⑮ NEGATE (Two's Complement)
+// ════════════════════════════════════
+// -n = bitwise NOT(n) + 1
+// This shows both methods:
+
+@42
+D=A
+@R0
+M=D      // RAM[0] = 42
+
+// Method 1: direct negation
+D=-D     // D = -42
+@R1
+M=D      // RAM[1] = -42
+
+// Method 2: two's complement manually
+@R0
+D=M      // D = 42
+D=!D     // bitwise NOT → -43
+D=D+1    // -43 + 1 = -42
+@R2
+M=D      // RAM[2] = -42 (same result!)
+
+(END)
+@END
+0;JMP`
+};
+
+function loadSample(key){
+  if(!key) return;
+  const code=SAMPLES[key]; if(!code) return;
+  document.getElementById('editor').value=code;
+  breakpoints.clear(); // Clear breakpoints when loading new sample
+  prevSourceHash = '';  // Reset hash tracking
+  doHighlight(); doReset(false);
+  document.getElementById('sample-sel').value='';
+  document.getElementById('editor').scrollTop=0;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════
+loadSample('hello');
+setTimeout(()=>{ doHighlight(); drawCPU(); buildRamTabContent(); updateMAlias(); },100);
+// Open ALU inspector by default
+document.getElementById('alu-panel').classList.add('open');
+document.getElementById('alu-arrow').textContent='▾';
+</script>
+</body>
+</html>
